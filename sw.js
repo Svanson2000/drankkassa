@@ -1,6 +1,6 @@
 /* Drankkassa offline-werking.
    Verhoog CACHE bij elke nieuwe versie, anders blijven toestellen de oude versie tonen. */
-const CACHE = 'drankkassa-v1';
+const CACHE = 'drankkassa-v2';
 const BESTANDEN = [
   './', 'index.html', 'manifest.webmanifest',
   'fonts/fonts.css', 'fonts/BarlowCondensed-600.woff2', 'fonts/BarlowCondensed-700.woff2', 'fonts/Inter.woff2',

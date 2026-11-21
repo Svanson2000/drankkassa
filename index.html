@@ -57,7 +57,7 @@ header h1{font-family:var(--display);font-size:26px;margin:0;letter-spacing:.02e
 .kop-totaal b{font-family:var(--display);font-size:36px;font-weight:700;line-height:1}
 .kop-totaal.leeg b{color:var(--muted)}
 aside{overflow:auto}
-#lijst{min-height:80px}
+
 .tabs{display:flex;gap:6px;background:var(--chip);padding:4px;border-radius:10px}
 .tabs button{border:0;background:transparent;padding:8px 16px;border-radius:7px;font-weight:600}
 .tabs button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px #0002}
@@ -76,7 +76,7 @@ main{flex:1;display:flex;min-height:0}
 aside{width:320px;flex:none;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;
   padding-block:14px;padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px))}
 aside h2,.blokkop{font-family:var(--display);font-size:20px;margin:0 0 8px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
-#lijst{flex:1;overflow:auto;min-height:0}
+#lijst{flex:1;overflow:auto;min-height:132px}
 .regel{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 .regel .n{font-weight:600}
 .regel .min{border:0;background:var(--chip);width:30px;height:30px;border-radius:8px;font-weight:700}
@@ -117,7 +117,14 @@ aside h2,.blokkop{font-family:var(--display);font-size:20px;margin:0 0 8px;lette
 .pknoppen .nieuw{margin-top:0}
 .pknoppen .terug{border:1px solid var(--ok-line);background:transparent;color:var(--ok-fg);border-radius:10px;padding:12px;font-weight:600}
 @media (prefers-reduced-motion:reduce){.pkaart{animation:none}}
-.mini{display:none}
+/* Korte statusbalk boven de afrekenknop (alle schermen) */
+.mini{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;margin-bottom:6px;border-radius:10px;padding:8px 12px;font-size:16px;font-weight:600;border:2px solid transparent;text-align:left;font-variant-numeric:tabular-nums}
+.mini b{font-family:var(--display);font-size:24px}
+.mini small{font-size:12px;font-weight:600;opacity:.8;white-space:nowrap}
+.mini.ok,.mini.gepast{background:var(--ok-bg);color:var(--ok-fg);border-color:var(--ok-line)}
+.mini.neg{background:var(--neg-bg);color:var(--neg-fg);border-color:var(--neg-line)}
+.mini.kaart{background:var(--kaart-bg);color:var(--kaart-fg);border-color:var(--kaart-line)}
+
 .wissel .lbl{font-size:15px;font-weight:600}
 .wissel .bedrag{font-family:var(--display);font-size:40px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
 .wissel.ok,.wissel.gepast{background:var(--ok-bg);color:var(--ok-fg);border-color:var(--ok-line)}
@@ -182,24 +189,19 @@ aside .bonkop h2{margin:0}
   main{flex-direction:column}
   #grid{grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px;padding-right:max(16px,env(safe-area-inset-right,0px))}
   .key{min-height:118px;padding:10px 6px}.key .ico{font-size:34px}.key .prijs{font-size:24px}
-  aside{width:auto;border-left:0;border-top:1px solid var(--line);max-height:55%;overflow:auto;padding-left:max(16px,env(safe-area-inset-left,0px))}
+  #grid{flex:0 1 auto;max-height:45%}
+  aside{flex:1 1 auto;min-height:0;width:auto;border-left:0;border-top:1px solid var(--line);overflow:auto;padding-left:max(16px,env(safe-area-inset-left,0px))}
   .totaal span:last-child{font-size:32px}
   header.met-totaal h1{display:none}
   header.met-totaal .kop-totaal{margin-left:0}
   .totaal{display:none}
   .kop-totaal b{font-size:32px}
-  #lijst{flex:none;overflow:visible}
+  #lijst{flex:none;overflow:visible;min-height:0}
   /* Afrekenknop blijft altijd zichtbaar onderaan de bestelling */
   /* Vaste voet onderaan: korte statusbalk + afrekenknop, zodat het scherm niet hoeft te verspringen */
   aside{padding-bottom:0}
   .voet{position:sticky;bottom:0;z-index:1;background:var(--surface);padding-bottom:10px;margin-top:8px;box-shadow:0 -8px 8px -6px #0002}
   .voet .nieuw{margin-top:0}
-  .mini{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;margin-bottom:6px;border-radius:10px;padding:8px 12px;font-size:16px;font-weight:600;border:2px solid transparent;text-align:left;font-variant-numeric:tabular-nums}
-  .mini b{font-family:var(--display);font-size:24px}
-  .mini small{font-size:12px;font-weight:600;opacity:.8;white-space:nowrap}
-  .mini.ok,.mini.gepast{background:var(--ok-bg);color:var(--ok-fg);border-color:var(--ok-line)}
-  .mini.neg{background:var(--neg-bg);color:var(--neg-fg);border-color:var(--neg-line)}
-  .mini.kaart{background:var(--kaart-bg);color:var(--kaart-fg);border-color:var(--kaart-line)}
   .kaart{grid-template-columns:1fr}
   .stats{grid-template-columns:repeat(2,1fr)}
   .stats b{font-size:26px}
