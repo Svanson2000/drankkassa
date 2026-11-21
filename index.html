@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Drankkassa</title>
+<meta name="description" content="Drankkassa met wisselgeld-hulp, werkt zonder internet.">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b221e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kassa">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
+body{margin:0;overscroll-behavior:none}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<style>
+/* Layout: knoppenraster links, bon rechts (tablet); op telefoon bon onderaan als vaste balk */
+:root{
+  --bg:#eef1ee; --surface:#ffffff; --fg:#17211c; --muted:#5d6b63; --line:#d7ddd8;
+  --accent:#1f6f4a; --accent-fg:#ffffff; --danger:#c0392b; --chip:#e3ece6;
+  --ok-bg:#e3f4ea; --ok-fg:#14532d; --ok-line:#2e9a5e; --neg-bg:#fde8e5; --neg-fg:#8a1c10; --neg-line:#d9534f; --kaart-bg:#e7effd; --kaart-fg:#163a7c; --kaart-line:#3b6fd6;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111613; --surface:#1b221e; --fg:#e8eee9; --muted:#9aa9a0; --line:#2c3630;
+  --accent:#3fae7a; --accent-fg:#0d1410; --danger:#e5604f; --chip:#243029;
+  --ok-bg:#16301f; --ok-fg:#bdf0cf; --ok-line:#3fae7a; --neg-bg:#3a1714; --neg-fg:#ffc2b8; --neg-line:#e5604f; --kaart-bg:#15223d; --kaart-fg:#c6d8ff; --kaart-line:#6b98f0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111613; --surface:#1b221e; --fg:#e8eee9; --muted:#9aa9a0; --line:#2c3630;
+  --accent:#3fae7a; --accent-fg:#0d1410; --danger:#e5604f; --chip:#243029;
+  --ok-bg:#16301f; --ok-fg:#bdf0cf; --ok-line:#3fae7a; --neg-bg:#3a1714; --neg-fg:#ffc2b8; --neg-line:#e5604f; --kaart-bg:#15223d; --kaart-fg:#c6d8ff; --kaart-line:#6b98f0; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;display:flex;flex-direction:column}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:var(--surface);border-bottom:1px solid var(--line)}
+header h1{font-family:var(--display);font-size:26px;margin:0;letter-spacing:.02em}
+/* Totaal altijd zichtbaar in de kopbalk */
+.kop-totaal{display:flex;align-items:baseline;gap:8px;margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kop-totaal span{font-size:14px;color:var(--muted);font-weight:600}
+.kop-totaal b{font-family:var(--display);font-size:36px;font-weight:700;line-height:1}
+.kop-totaal.leeg b{color:var(--muted)}
+aside{overflow:auto}
+#lijst{min-height:80px}
+.tabs{display:flex;gap:6px;background:var(--chip);padding:4px;border-radius:10px}
+.tabs button{border:0;background:transparent;padding:8px 16px;border-radius:7px;font-weight:600}
+.tabs button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px #0002}
+main{flex:1;display:flex;min-height:0}
+#grid{flex:1;min-width:0;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;align-content:start;
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px}
+.key{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:150px;justify-content:center;transition:transform .08s}
+.key:active{transform:scale(.95);background:var(--chip)}
+.key .ico{font-size:44px;line-height:1}
+.svgico{display:inline-flex}
+.svgico svg{width:1.2em;height:1.2em;display:block}
+.key img{width:56px;height:56px;object-fit:contain;border-radius:8px}
+.key .naam{font-size:14px;color:var(--muted);text-align:center;line-height:1.25}
+.key .prijs{font-family:var(--display);font-size:30px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.key .aantal{font-size:12px;font-weight:600;background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:1px 8px}
+aside{width:320px;flex:none;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;
+  padding-block:14px;padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+aside h2,.blokkop{font-family:var(--display);font-size:20px;margin:0 0 8px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+#lijst{flex:1;overflow:auto;min-height:0}
+.regel{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.regel .n{font-weight:600}
+.regel .min{border:0;background:var(--chip);width:30px;height:30px;border-radius:8px;font-weight:700}
+.leeg{color:var(--muted);padding:12px 0}
+.totaal{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px}
+.totaal span:last-child{font-family:var(--display);font-size:40px;font-weight:700;font-variant-numeric:tabular-nums}
+.betaal{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.betaalkop{margin-top:10px;font-size:13px;color:var(--muted)}
+.betaal{margin-top:6px!important;display:grid!important;grid-template-columns:repeat(6,1fr)}
+.betaal .geldknop{grid-column:span 2}
+.betaal button{min-width:0!important}
+.betaal button{flex:1;min-width:60px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 4px;font-weight:600}
+.betaal .geldknop{padding:5px 4px;display:flex;align-items:center;justify-content:center;min-height:44px}
+.betaal .geldknop:active{transform:scale(.94)}
+.betaal .gepastknop,.betaal .kaartknop{grid-column:span 3}
+.betaal .kaartknop{display:flex;align-items:center;justify-content:center;gap:6px;border-color:var(--kaart-line);color:var(--kaart-fg);background:var(--kaart-bg)}
+.betaal .kaartknop[aria-pressed="true"]{background:var(--kaart-line);color:#fff}
+.betaal .kaartknop svg{flex:none}
+.wissel.kaart{background:var(--kaart-bg);color:var(--kaart-fg);border-color:var(--kaart-line)}
+.nieuw.kaart{background:var(--kaart-line);color:#fff}
+.gegeven{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:14px;font-variant-numeric:tabular-nums}
+.gegeven:empty{display:none}
+#betaald{width:100%;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:17px}
+/* Groot kleurvlak met wisselgeld */
+.wissel{margin-top:8px;border-radius:12px;padding:10px 12px;border:2px solid transparent}
+.wissel:empty{display:none}
+.wissel{scroll-margin-bottom:150px}
+.voet{display:flex;flex-direction:column;position:sticky;bottom:0;z-index:1;background:var(--surface)}
+/* Popup "Geef terug" */
+.popup{position:fixed;inset:0;z-index:50;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px}
+.pkaart{width:100%;max-width:420px;max-height:100%;overflow:auto;background:var(--ok-bg);color:var(--ok-fg);border:3px solid var(--ok-line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 12px 40px #0005;animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.92);opacity:0}}
+.pkaart .lbl{font-size:18px;font-weight:700}
+.pkaart .bedrag{font-family:var(--display);font-size:64px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.pkaart .geld{gap:10px}
+.pkaart .uitleg{font-size:14px}
+.pknoppen{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pknoppen .nieuw{margin-top:0}
+.pknoppen .terug{border:1px solid var(--ok-line);background:transparent;color:var(--ok-fg);border-radius:10px;padding:12px;font-weight:600}
+@media (prefers-reduced-motion:reduce){.pkaart{animation:none}}
+.mini{display:none}
+.wissel .lbl{font-size:15px;font-weight:600}
+.wissel .bedrag{font-family:var(--display);font-size:40px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.wissel.ok,.wissel.gepast{background:var(--ok-bg);color:var(--ok-fg);border-color:var(--ok-line)}
+.wissel.neg{background:var(--neg-bg);color:var(--neg-fg);border-color:var(--neg-line)}
+.wissel .uitleg{font-size:13px;margin-top:6px;opacity:.85}
+.geld{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.biljet{display:block;flex:none;border-radius:4px;box-shadow:0 1px 3px #0004}
+.munt{display:block;flex:none;border-radius:50%;box-shadow:0 1px 2px #0004}
+.nieuw:disabled{opacity:.5;cursor:not-allowed}
+.bonkop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+aside .bonkop h2{margin:0}
+.bonknoppen{display:flex;gap:6px}
+.undo{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600}
+.undo:disabled{opacity:.4;cursor:default}
+.key.tik{animation:tik .35s}
+@keyframes tik{0%{background:var(--chip);border-color:var(--accent)}}
+.nieuw{margin-top:8px;border:0;background:var(--accent);color:var(--accent-fg);border-radius:10px;padding:14px;font-size:17px;font-weight:600}
+#instel{flex:1;overflow:auto;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.hint{color:var(--muted);margin:0}
+/* Dagoverzicht in admin */
+.blok{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stats div{background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.stats span{font-size:12px;color:var(--muted)}
+.stats b{font-family:var(--display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+.stats div:first-child b{color:var(--accent)}
+.tabel{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tabel th{font-size:12px;color:var(--muted);font-weight:600;text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+.tabel td{padding:8px 4px;border-bottom:1px solid var(--line)}
+.tabel th:not(:first-child),.tabel td:not(:first-child){text-align:right}
+.tabel tfoot td{font-weight:600;border-bottom:0}
+/* Pincodescherm */
+#pin{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.pinbox{width:100%;max-width:300px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.pinbox h2{font-family:var(--display);font-size:26px;margin:0;text-align:center}
+#pinFout{min-height:20px;margin:0;color:var(--danger);font-weight:600;text-align:center}
+.dots{display:flex;gap:14px}
+.dots span{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent)}
+.dots span.vol{background:var(--accent)}
+.dots.schud{animation:schud .3s}
+@keyframes schud{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%}
+.pad button{border:1px solid var(--line);background:var(--surface);border-radius:14px;height:64px;font-family:var(--display);font-size:30px;font-weight:700}
+.pad button:active{background:var(--chip)}
+.pad .klein{font-family:var(--body);font-size:15px;font-weight:600;color:var(--muted)}
+.adminknoppen{display:flex;flex-wrap:wrap;gap:8px}
+.adminknoppen button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 12px;font-size:14px}
+.reset{align-self:flex-start;border:1px solid var(--line);background:var(--bg);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:14px}
+.kaart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;grid-template-columns:110px 1fr;gap:10px 14px;align-items:center}
+.kaart label{font-size:13px;color:var(--muted)}
+.kaart input[type=text],.kaart input[type=number]{width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.icons{display:flex;flex-wrap:wrap;gap:4px}
+.icons button{border:1px solid transparent;background:var(--bg);border-radius:8px;width:40px;height:40px;font-size:22px}
+.icons button[aria-pressed="true"]{border-color:var(--accent);background:var(--chip)}
+.acties{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.acties button,.acties label.file{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 12px;font-size:14px;color:var(--fg)}
+.acties .weg{color:var(--danger)}
+.acties img{width:40px;height:40px;object-fit:contain;border-radius:6px}
+.plus{border:2px dashed var(--line);background:transparent;border-radius:12px;padding:16px;font-weight:600}
+@media (max-width:760px){
+  main{flex-direction:column}
+  #grid{grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .key{min-height:118px;padding:10px 6px}.key .ico{font-size:34px}.key .prijs{font-size:24px}
+  aside{width:auto;border-left:0;border-top:1px solid var(--line);max-height:55%;overflow:auto;padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .totaal span:last-child{font-size:32px}
+  header.met-totaal h1{display:none}
+  header.met-totaal .kop-totaal{margin-left:0}
+  .totaal{display:none}
+  .kop-totaal b{font-size:32px}
+  #lijst{flex:none;overflow:visible}
+  /* Afrekenknop blijft altijd zichtbaar onderaan de bestelling */
+  /* Vaste voet onderaan: korte statusbalk + afrekenknop, zodat het scherm niet hoeft te verspringen */
+  aside{padding-bottom:0}
+  .voet{position:sticky;bottom:0;z-index:1;background:var(--surface);padding-bottom:10px;margin-top:8px;box-shadow:0 -8px 8px -6px #0002}
+  .voet .nieuw{margin-top:0}
+  .mini{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;margin-bottom:6px;border-radius:10px;padding:8px 12px;font-size:16px;font-weight:600;border:2px solid transparent;text-align:left;font-variant-numeric:tabular-nums}
+  .mini b{font-family:var(--display);font-size:24px}
+  .mini small{font-size:12px;font-weight:600;opacity:.8;white-space:nowrap}
+  .mini.ok,.mini.gepast{background:var(--ok-bg);color:var(--ok-fg);border-color:var(--ok-line)}
+  .mini.neg{background:var(--neg-bg);color:var(--neg-fg);border-color:var(--neg-line)}
+  .mini.kaart{background:var(--kaart-bg);color:var(--kaart-fg);border-color:var(--kaart-line)}
+  .kaart{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stats b{font-size:26px}
+}
+@media (prefers-reduced-motion:reduce){.key{transition:none}.key.tik{animation:none}.dots.schud{animation:none}}
+</style>
+
+<header>
+  <h1>Drankkassa</h1>
+  <div class="kop-totaal" id="kopTotaal" aria-live="polite"><span>Totaal</span><b id="kopBedrag">€0,00</b></div>
+  <div class="tabs" role="group" aria-label="Weergave">
+    <button id="tabKassa" aria-pressed="true">Kassa</button>
+    <button id="tabInstel" aria-pressed="false">Admin</button>
+  </div>
+</header>
+
+<main id="kassa">
+  <div id="grid"></div>
+  <aside>
+    <div class="bonkop"><h2>Bestelling</h2><div class="bonknoppen"><button class="undo" id="undo">↶ Laatste tik terug</button><button class="undo" id="wisbon">Wis alles</button></div></div>
+    <div id="lijst"></div>
+    <div class="totaal"><span>Totaal</span><span id="totaal">€0,00</span></div>
+    <div class="betaalkop">Tik wat de klant geeft (elke tik telt op):</div>
+    <div class="betaal" id="snel"></div>
+    <div id="gegeven" class="gegeven" aria-live="polite"></div>
+    <input id="betaald" type="number" inputmode="decimal" step="0.01" placeholder="Of typ het bedrag (€)">
+    <div id="wissel" class="wissel" aria-live="polite"></div>
+    <div class="voet">
+      <button class="mini" id="mini" hidden></button>
+      <button class="nieuw" id="nieuw">Afgerekend, volgende klant</button>
+    </div>
+  </aside>
+</main>
+
+<div id="popup" class="popup" hidden role="dialog" aria-modal="true" aria-labelledby="pLbl">
+  <div class="pkaart">
+    <div class="lbl" id="pLbl">Geef terug</div>
+    <div class="bedrag" id="pBedrag"></div>
+    <div id="pGeld"></div>
+    <div class="pknoppen">
+      <button class="nieuw" id="pKlaar">Teruggegeven, volgende klant</button>
+      <button class="terug" id="pTerug">Terug, ik moet nog iets aanpassen</button>
+    </div>
+  </div>
+</div>
+
+<div id="instel" hidden>
+  <div class="wrap">
+    <section class="blok" aria-labelledby="kopDag">
+      <div>
+        <h2 class="blokkop" id="kopDag">Dagoverzicht</h2>
+        <p class="hint" id="sinds"></p>
+      </div>
+      <div class="stats">
+        <div><span>Omzet</span><b id="sOmzet"></b></div>
+        <div><span>Klanten</span><b id="sKlanten"></b></div>
+        <div><span>Gem. per klant</span><b id="sGem"></b></div>
+        <div><span>Drankjes verkocht</span><b id="sStuks"></b></div>
+        <div><span>Cash</span><b id="sCash"></b></div>
+        <div><span>Bancontact</span><b id="sKaart"></b></div>
+      </div>
+      <table class="tabel">
+        <thead><tr><th>Drankje</th><th>Prijs</th><th>Aantal</th><th>Bedrag</th></tr></thead>
+        <tbody id="sRijen"></tbody>
+      </table>
+      <div class="adminknoppen">
+        <button class="reset" id="dagReset">Dag op nul</button>
+        <button id="pinWijzig">Pincode wijzigen</button>
+      </div>
+    </section>
+
+    <h2 class="blokkop" style="margin-top:8px">Prijsknoppen</h2>
+    <p class="hint">Vul per prijsknop in welke drankjes erbij horen, kies een icoon of upload een eigen afbeelding, zoals een logo. Alles wordt op dit apparaat bewaard.</p>
+    <div id="kaarten" class="wrap"></div>
+    <button class="plus" id="plus">+ Prijsknop toevoegen</button>
+  </div>
+</div>
+
+<div id="pin" hidden>
+  <div class="pinbox">
+    <h2 id="pinTitel">Pincode</h2>
+    <div class="dots" id="dots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <p id="pinFout" role="alert"></p>
+    <div class="pad" id="pad"></div>
+  </div>
+</div>
+
+<script>
+/* Eigen getekende iconen in emojistijl: 3D-longdrinkglas met ijs + flesje/blikje erachter. {U} wordt per keer uniek gemaakt (gradient-id's). */
+const CUBE=(x,y,s,r,o)=>`<g transform="rotate(${r} ${x+s/2} ${y+s/2})" opacity="${o}" stroke="#9fd0ea" stroke-width=".5" stroke-linejoin="round">
+<path d="M${x} ${y}h${s}l${s*.35} ${-s*.3}h${-s}z" fill="#fff"/>
+<path d="M${x+s} ${y}l${s*.35} ${-s*.3}v${s}l${-s*.35} ${s*.3}z" fill="#b6def4"/>
+<rect x="${x}" y="${y}" width="${s}" height="${s}" rx="1" fill="url(#ice{U})"/>
+<path d="M${x+1.3} ${y+1.6}v${s*.45}" stroke="#fff" stroke-width="1" stroke-linecap="round"/></g>`;
+const GLAS=c=>`
+<defs>
+<linearGradient id="lq{U}" x1="0" x2="1"><stop offset="0" stop-color="${c.e}"/><stop offset=".35" stop-color="${c.m}"/><stop offset="1" stop-color="${c.e}"/></linearGradient>
+<linearGradient id="gs{U}" x1="0" x2="1"><stop offset="0" stop-color="#e3f3ff" stop-opacity=".45"/><stop offset=".12" stop-color="#fff" stop-opacity=".05"/><stop offset=".85" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#dcefff" stop-opacity=".5"/></linearGradient>
+<linearGradient id="ice{U}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".97"/><stop offset="1" stop-color="#c8e8fa" stop-opacity=".88"/></linearGradient>
+<radialGradient id="gw{U}" cx=".42" cy=".55" r=".55"><stop offset="0" stop-color="${c.g}" stop-opacity=".85"/><stop offset="1" stop-color="${c.g}" stop-opacity="0"/></radialGradient>
+<linearGradient id="st{U}" x1="0" x2="1"><stop offset="0" stop-color="${c.s2}"/><stop offset=".4" stop-color="${c.s}"/><stop offset="1" stop-color="${c.s2}"/></linearGradient>
+</defs>
+<path d="M9 12L10.5 55.5A11.5 2.7 0 0 0 33.5 55.5L35 12Z" fill="#eaf6ff" fill-opacity=".3"/>
+<line x1="25" y1="48" x2="33" y2="2.5" stroke="url(#st{U})" stroke-width="3.4" stroke-linecap="round"/>
+<ellipse cx="22" cy="54" rx="11.4" ry="2.4" fill="#fff" fill-opacity=".55"/>
+<path d="M9.75 33L10.55 52A11.45 2.5 0 0 0 33.45 52L34.25 33Z" fill="url(#lq{U})"/>
+<path d="M9.75 33L10.55 52A11.45 2.5 0 0 0 33.45 52L34.25 33Z" fill="url(#gw{U})"/>
+<g fill="#fff" fill-opacity=".5"><circle cx="15" cy="49" r=".9"/><circle cx="28.5" cy="50" r="1.1"/><circle cx="20.5" cy="47" r=".7"/><circle cx="31" cy="40" r=".7"/><circle cx="12.5" cy="38" r=".6"/></g>
+${CUBE(13.5,40,7.5,15,.28)}${CUBE(23,44,7,-8,.28)}
+<ellipse cx="22" cy="33" rx="12.25" ry="2.8" fill="${c.t}" stroke="${c.rim}" stroke-width=".6"/>
+${CUBE(12,28,8,-10,.96)}${CUBE(22,29.5,8,12,.96)}
+<path d="M9 12L10.5 55.5A11.5 2.7 0 0 0 33.5 55.5L35 12Z" fill="url(#gs{U})"/>
+<path d="M11.7 15L12.9 50" stroke="#fff" stroke-opacity=".9" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M14.6 15.5L14.9 22" stroke="#fff" stroke-opacity=".7" stroke-width="1" stroke-linecap="round"/>
+<path d="M32.6 16L31.9 44" stroke="#fff" stroke-opacity=".55" stroke-width="1.2" stroke-linecap="round"/>
+<g fill="#fff" fill-opacity=".8" stroke="#a9d3ea" stroke-width=".3"><circle cx="17" cy="19" r="1.1"/><circle cx="28.5" cy="22" r="1.3"/><circle cx="20" cy="25" r=".8"/><circle cx="26" cy="16" r=".7"/><circle cx="30" cy="47" r=".9"/><circle cx="16" cy="45" r=".7"/></g>
+<path d="M9 12L10.5 55.5A11.5 2.7 0 0 0 33.5 55.5L35 12" fill="none" stroke="#9fbccc" stroke-width=".8" stroke-linejoin="round"/>
+<ellipse cx="22" cy="12" rx="13" ry="3" fill="#fff" fill-opacity=".3" stroke="#a9c6d6" stroke-width=".8"/>
+<path d="M11 13.3Q22 16.2 33 13.3" fill="none" stroke="#fff" stroke-width=".8" stroke-opacity=".9"/>`;
+const SCHADUW=`<ellipse cx="32" cy="59" rx="26" ry="2.6" fill="#000" fill-opacity=".14"/>`;
+const FLES='M44.6 9L44.6 14C44.6 18 41 21 41 27C41 31 42.6 32 42.6 35C42.6 38 40.4 40 40.4 45L40.4 56Q40.4 58.5 43 58.5L51 58.5Q53.6 58.5 53.6 56L53.6 45C53.6 40 51.4 38 51.4 35C51.4 32 53 31 53 27C53 21 49.4 18 49.4 14L49.4 9Z';
+const SVGICO={
+  cola:`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${SCHADUW}
+<defs>
+<linearGradient id="bt{U}" x1="0" x2="1"><stop offset="0" stop-color="#140401"/><stop offset=".28" stop-color="#6a2c0e"/><stop offset=".5" stop-color="#3a1405"/><stop offset="1" stop-color="#100300"/></linearGradient>
+<linearGradient id="rd{U}" x1="0" x2="1"><stop offset="0" stop-color="#8f1010"/><stop offset=".3" stop-color="#ee3b32"/><stop offset=".55" stop-color="#c41f1f"/><stop offset="1" stop-color="#7d0c0c"/></linearGradient>
+<clipPath id="cl{U}"><path d="${FLES}"/></clipPath>
+</defs>
+<g transform="translate(-3 0)">
+<path d="${FLES}" fill="url(#bt{U})"/>
+<g clip-path="url(#cl{U})"><path d="M38 38.5Q47 40.5 56 38.5V46Q47 48 38 46Z" fill="url(#rd{U})"/>
+<path d="M39 44.6Q43 40.6 47 43.6T55.5 42" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/></g>
+<rect x="44.2" y="10" width="5.6" height="1.6" rx=".8" fill="#2a0d03"/>
+<rect x="43.6" y="5" width="6.8" height="4.2" rx="1" fill="url(#rd{U})"/>
+<path d="M43.6 8.8l.85 1 .85-1 .85 1 .85-1 .85 1 .85-1 .85 1 .85-1" fill="none" stroke="#7d0c0c" stroke-width=".6"/>
+<path d="M44.5 6h5" stroke="#fff" stroke-opacity=".6" stroke-width=".7" stroke-linecap="round"/>
+<path d="M42.6 27Q42.6 22 45.5 18.5" stroke="#fff" stroke-opacity=".55" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<path d="M42.3 48.5V56M45.6 12V16.5" stroke="#fff" stroke-opacity=".45" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M51.9 47.5V55.5" stroke="#fff" stroke-opacity=".2" stroke-width="1" stroke-linecap="round"/>
+<path d="${FLES}" fill="none" stroke="#0c0200" stroke-width=".6"/>
+</g>
+${GLAS({e:'#1e0802',m:'#5a240a',g:'#b5561f',t:'#4a1e09',rim:'#b8865c',s:'#ff5a4f',s2:'#b71c1c'})}</svg>`,
+  energy:`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${SCHADUW}
+<defs>
+<linearGradient id="mt{U}" x1="0" x2="1"><stop offset="0" stop-color="#7c8794"/><stop offset=".22" stop-color="#f5f8fa"/><stop offset=".4" stop-color="#c3cbd3"/><stop offset=".8" stop-color="#8c97a3"/><stop offset="1" stop-color="#5f6974"/></linearGradient>
+<linearGradient id="bl{U}" x1="0" x2="1"><stop offset="0" stop-color="#0f2355"/><stop offset=".22" stop-color="#4a7ae0"/><stop offset=".4" stop-color="#2450b0"/><stop offset=".8" stop-color="#16337a"/><stop offset="1" stop-color="#0b1b45"/></linearGradient>
+</defs>
+<g transform="translate(-2 0)">
+<rect x="38" y="18" width="18" height="39" rx="2" fill="url(#mt{U})"/>
+<ellipse cx="47" cy="57" rx="9" ry="1.8" fill="url(#mt{U})"/>
+<path d="M38 21H56V37L51.5 41.5 47 37 42.5 41.5 38 37Z" fill="url(#bl{U})"/>
+<path d="M42.5 47L47 42.5 51.5 47 47 51.5ZM38 43.5L40.5 47 38 50.5ZM56 43.5L53.5 47 56 50.5Z" fill="url(#bl{U})"/>
+<rect x="38" y="53" width="18" height="2" fill="url(#bl{U})"/>
+<path d="M38 18.8Q38 17 39.3 16.2H54.7Q56 17 56 18.8Z" fill="url(#mt{U})"/>
+<ellipse cx="47" cy="16.2" rx="7.8" ry="1.9" fill="#d5dbe1" stroke="#7b8692" stroke-width=".7"/>
+<ellipse cx="47" cy="16.3" rx="6.6" ry="1.4" fill="#bcc4cc"/>
+<rect x="44.4" y="15.2" width="5.2" height="2" rx="1" fill="#a9b2bb" stroke="#6f7a86" stroke-width=".4"/>
+<ellipse cx="46" cy="16.2" rx=".9" ry=".5" fill="#6f7a86"/>
+<rect x="40.5" y="19" width="1.6" height="37" rx=".8" fill="#fff" fill-opacity=".55"/>
+<path d="M39.6 17.6Q47 16 54.4 17.6" stroke="#fff" stroke-opacity=".6" stroke-width=".6" fill="none"/>
+<path d="M38 19V56.5Q47 59.5 56 56.5V19" fill="none" stroke="#5f6974" stroke-width=".5"/>
+</g>
+${GLAS({e:'#e07b00',m:'#ffc21a',g:'#fff2a6',t:'#ffd23d',rim:'#fff6c8',s:'#3aa0ff',s2:'#145fb8'})}</svg>`
+};
+/* Shotglas (laag en breed) met dikke glazen bodem; c = midden x */
+const SHOT=(c,k)=>`
+<defs>
+<linearGradient id="sq{U}" x1="0" x2="1"><stop offset="0" stop-color="${k.e}"/><stop offset=".35" stop-color="${k.m}"/><stop offset="1" stop-color="${k.e}"/></linearGradient>
+<radialGradient id="sw{U}" cx=".42" cy=".5" r=".6"><stop offset="0" stop-color="${k.g}" stop-opacity=".85"/><stop offset="1" stop-color="${k.g}" stop-opacity="0"/></radialGradient>
+<linearGradient id="sg{U}" x1="0" x2="1"><stop offset="0" stop-color="#e3f3ff" stop-opacity=".5"/><stop offset=".14" stop-color="#fff" stop-opacity=".05"/><stop offset=".85" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#dcefff" stop-opacity=".55"/></linearGradient>
+</defs>
+<path d="M${c-12} 24L${c-9.5} 55.5A9.5 2.2 0 0 0 ${c+9.5} 55.5L${c+12} 24Z" fill="#eaf6ff" fill-opacity=".3"/>
+<path d="M${c-10.1} 48A10.1 2.3 0 0 0 ${c+10.1} 48L${c+9.5} 55.5A9.5 2.2 0 0 1 ${c-9.5} 55.5Z" fill="#dff1fc" fill-opacity=".8"/>
+<ellipse cx="${c}" cy="52.5" rx="6.5" ry="1.2" fill="#fff" fill-opacity=".75"/>
+<path d="M${c-11.3} 32L${c-10.1} 48A10.1 2.3 0 0 0 ${c+10.1} 48L${c+11.3} 32Z" fill="url(#sq{U})"/>
+<path d="M${c-11.3} 32L${c-10.1} 48A10.1 2.3 0 0 0 ${c+10.1} 48L${c+11.3} 32Z" fill="url(#sw{U})"/>
+<g fill="#fff" fill-opacity=".55"><circle cx="${c-4}" cy="43" r=".8"/><circle cx="${c+5}" cy="45" r=".9"/><circle cx="${c+1}" cy="39" r=".6"/></g>
+<ellipse cx="${c}" cy="32" rx="11.3" ry="2.5" fill="${k.t}" stroke="${k.rim}" stroke-width=".6"/>
+<path d="M${c-12} 24L${c-9.5} 55.5A9.5 2.2 0 0 0 ${c+9.5} 55.5L${c+12} 24Z" fill="url(#sg{U})"/>
+<path d="M${c-9.8} 27L${c-8.1} 53" stroke="#fff" stroke-opacity=".9" stroke-width="2" stroke-linecap="round"/>
+<path d="M${c-6.8} 27.5L${c-6.6} 31" stroke="#fff" stroke-opacity=".7" stroke-width=".9" stroke-linecap="round"/>
+<path d="M${c+10.2} 28L${c+8.8} 52" stroke="#fff" stroke-opacity=".55" stroke-width="1.1" stroke-linecap="round"/>
+<g fill="#fff" fill-opacity=".8" stroke="#a9d3ea" stroke-width=".3"><circle cx="${c-3}" cy="28" r=".8"/><circle cx="${c+5}" cy="29" r="1"/><circle cx="${c+3}" cy="50.5" r=".7"/></g>
+<path d="M${c-12} 24L${c-9.5} 55.5A9.5 2.2 0 0 0 ${c+9.5} 55.5L${c+12} 24" fill="none" stroke="#9fbccc" stroke-width=".8" stroke-linejoin="round"/>
+<ellipse cx="${c}" cy="24" rx="12" ry="2.7" fill="#fff" fill-opacity=".3" stroke="#a9c6d6" stroke-width=".8"/>
+<path d="M${c-10} 25.3Q${c} 27.8 ${c+10} 25.3" fill="none" stroke="#fff" stroke-width=".7" stroke-opacity=".9"/>`;
+const TWEE=k=>`<ellipse cx="32" cy="59" rx="27" ry="2.6" fill="#000" fill-opacity=".14"/>${SHOT(19.5,k).replaceAll('{U}','{U}a')}${SHOT(44.5,k).replaceAll('{U}','{U}b')}`;
+const RUMFLES='M44.5 6V15C44.5 18 39 19 39 23V56Q39 58.5 41.5 58.5H52.5Q55 58.5 55 56V23C55 19 49.5 18 49.5 15V6Z';
+SVGICO.shot=`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${TWEE({e:'#c3d1dc',m:'#ffffff',g:'#fff',t:'#eef5fa',rim:'#fff'})}</svg>`;
+SVGICO.shotrood=`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${TWEE({e:'#8f0a26',m:'#e8284f',g:'#ff8fa6',t:'#d41c42',rim:'#ff9fb3'})}</svg>`;
+SVGICO.rum=`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="59" rx="27" ry="2.6" fill="#000" fill-opacity=".14"/>
+${SHOT(21,{e:'#5a2604',m:'#c2650f',g:'#ffb54a',t:'#a4500c',rim:'#e6a35a'})}
+<text x="48.5" y="45" text-anchor="middle" font-family="'Barlow Condensed','Arial Narrow',system-ui,sans-serif" font-weight="700" font-size="21" fill="#8a3a08" stroke="#fff" stroke-width="2.4" paint-order="stroke" letter-spacing="-.5">80°</text></svg>`;
+let icoTeller=0;
+const icoHtml=(ico,cls)=>{
+  if(!(ico&&ico.startsWith('svg:')))return `<span class="${cls}" aria-hidden="true">${ico}</span>`;
+  const u='i'+(++icoTeller);
+  return `<span class="${cls} svgico" aria-hidden="true">${(SVGICO[ico.slice(4)]||'').replaceAll('{U}',u)}</span>`};
+const ICONEN=['☕','🍵','🥤','🧃','💧','🍺','🍷','🥂','🍸','🍹','🥃','🧉','🍾','🍫','🥐','🍪','svg:cola','svg:energy','svg:shot','svg:shotrood','svg:rum'];
+const VOORBEELD=[
+  {prijs:2.8,naam:'Koffie / Thee',ico:'☕'},
+  {prijs:3,naam:'Frisdrank / Water',ico:'🥤'},
+  {prijs:4,naam:'Bier',ico:'🍺'},
+  {prijs:6.5,naam:'Wijn',ico:'🍷'},
+  {prijs:7.5,naam:'Cocktail',ico:'🍹'},
+  {prijs:9.5,naam:'Cava',ico:'🥂'},
+  {prijs:10,naam:'Sterke drank',ico:'🥃'}
+].map(k=>({...k,img:''}));
+const lees=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const schrijf=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const legeDag=()=>({bedrag:0,klanten:0,kaart:0,items:{},sinds:Date.now()});
+let knoppen=lees('kassa-knoppen',VOORBEELD);
+/* Eenmalig: longdrinkknoppen toevoegen op elk toestel (ook als de knoppen al bewaard waren) */
+if(!lees('kassa-longdrinks-v1',false)){
+  if(!knoppen.some(k=>k.ico==='svg:cola'))knoppen.push({prijs:9.5,naam:'Longdrink + cola',ico:'svg:cola',img:''});
+  if(!knoppen.some(k=>k.ico==='svg:energy'))knoppen.push({prijs:10.5,naam:'Longdrink + Red Bull',ico:'svg:energy',img:''});
+  schrijf('kassa-knoppen',knoppen);schrijf('kassa-longdrinks-v1',true);
+}
+if(!lees('kassa-shots-v1',false)){
+  if(!knoppen.some(k=>k.ico==='svg:shot'))knoppen.push({prijs:3,naam:'Shots',ico:'svg:shot',img:''});
+  if(!knoppen.some(k=>k.ico==='svg:shotrood'))knoppen.push({prijs:4,naam:'Shots',ico:'svg:shotrood',img:''});
+  if(!knoppen.some(k=>k.ico==='svg:rum'))knoppen.push({prijs:5,naam:'Ströh rum',ico:'svg:rum',img:''});
+  schrijf('kassa-knoppen',knoppen);schrijf('kassa-shots-v1',true);
+}
+/* Eenmalig: knop "Sterke drank" €10 wordt "Grey Goose" €13 */
+if(!lees('kassa-greygoose-v1',false)){
+  knoppen.forEach(k=>{if(k.prijs===10&&/sterke drank/i.test(k.naam||'')){k.naam='Grey Goose';k.prijs=13}});
+  schrijf('kassa-knoppen',knoppen);schrijf('kassa-greygoose-v1',true);
+}
+/* Eenmalig: "Frisdrank / Water" wordt "Frisdrank", "Koffie / Thee" wordt "Water" */
+if(!lees('kassa-water-v1',false)){
+  knoppen.forEach(k=>{
+    if(/^frisdrank\s*\/\s*water$/i.test((k.naam||'').trim()))k.naam='Frisdrank';
+    if(/^koffie\s*\/\s*thee$/i.test((k.naam||'').trim())){k.naam='Water';if(!k.img)k.ico='💧'}
+  });
+  schrijf('kassa-knoppen',knoppen);schrijf('kassa-water-v1',true);
+}
+let dag=lees('kassa-dag',legeDag());
+if(!dag.items)dag.items={};
+if(!dag.kaart)dag.kaart=0;
+if(!dag.sinds)dag.sinds=Date.now();
+let bon={}; // index -> aantal
+let historie=[]; // volgorde van getikte knoppen, voor 'Laatste tik terug'
+let gegeven=[]; // briefjes/munten die de klant gaf, in cent
+let kaartModus=false; // true = klant betaalt met Bancontact
+function tekenGegeven(){
+  const d=$('gegeven');
+  if(!gegeven.length){d.innerHTML='';return}
+  const tel={};gegeven.forEach(c=>tel[c]=(tel[c]||0)+1);
+  const naam=c=>c>=500?'€'+c/100:c>=100?(c/100)+'€':c+'c';
+  const delen=Object.keys(tel).map(Number).sort((a,b)=>b-a).map(c=>`${tel[c]} × ${naam(c)}`);
+  d.innerHTML=`<span>Klant gaf: <b>${delen.join(' + ')}</b> = <b>${eur(gegeven.reduce((x,y)=>x+y,0)/100)}</b></span><button class="undo" id="gegevenWis">Opnieuw</button>`;
+  $('gegevenWis').onclick=()=>{sluitPopup();gegeven=[];$('betaald').value='';tekenGegeven();wissel()};
+}
+const tril=()=>{try{navigator.vibrate&&navigator.vibrate(15)}catch(e){}};
+const eur=n=>'€'+(Math.round(n*100)/100).toFixed(2).replace('.',',');
+const $=id=>document.getElementById(id);
+
+function totaal(){return Object.entries(bon).reduce((s,[i,n])=>s+(knoppen[i]?knoppen[i].prijs*n:0),0)}
+
+function tekenGrid(){
+  const g=$('grid');g.innerHTML='';
+  knoppen.forEach((k,i)=>{
+    const b=document.createElement('button');b.className='key';
+    const beeld=k.img?`<img src="${k.img}" alt="">`:icoHtml(k.ico,'ico');
+    b.innerHTML=`${beeld}<span class="naam"></span><span class="prijs">${eur(k.prijs)}</span>${bon[i]?`<span class="aantal">${bon[i]}×</span>`:''}`;
+    b.querySelector('.naam').textContent=k.naam||'Drankje';
+    b.setAttribute('aria-label',`${k.naam||'Drankje'} ${eur(k.prijs)} toevoegen`);
+    b.onclick=()=>{bon[i]=(bon[i]||0)+1;historie.push(i);tril();teken();const nk=$('grid').children[i];if(nk)nk.classList.add('tik')};
+    g.appendChild(b);
+  });
+}
+function tekenBon(){
+  const l=$('lijst');l.innerHTML='';
+  const items=Object.entries(bon).filter(([i,n])=>n>0&&knoppen[i]);
+  if(!items.length){l.innerHTML='<div class="leeg">Tik op een prijs om te beginnen.</div>'}
+  items.forEach(([i,n])=>{
+    const k=knoppen[i];const r=document.createElement('div');r.className='regel';
+    r.innerHTML=`<span class="n">${n}×</span><span class="t"></span><span>${eur(k.prijs*n)}</span><button class="min" aria-label="Eén minder">−</button>`;
+    r.querySelector('.t').textContent=`${k.img||String(k.ico).startsWith('svg:')?'':k.ico+' '}${k.naam||'Drankje'}`;
+    r.querySelector('.min').onclick=()=>{bon[i]--;if(bon[i]<=0)delete bon[i];teken()};
+    l.appendChild(r);
+  });
+  $('undo').disabled=!historie.length;$('wisbon').disabled=!items.length;
+  const t=totaal();$('totaal').textContent=eur(t);$('kopBedrag').textContent=eur(t);$('kopTotaal').classList.toggle('leeg',t<=0);
+  const s=$('snel');s.innerHTML='';
+  const gp=document.createElement('button');gp.className='gepastknop';gp.textContent='Gepast';
+  gp.onclick=()=>{kaartModus=false;gegeven=[];$('betaald').value=t.toFixed(2);tril();tekenBon();wissel(true)};s.appendChild(gp);
+  const bc=document.createElement('button');bc.className='kaartknop';bc.setAttribute('aria-pressed',kaartModus);
+  bc.innerHTML=`<svg width="26" height="18" viewBox="0 0 26 18" aria-hidden="true"><rect x=".75" y=".75" width="24.5" height="16.5" rx="2.5" fill="currentColor" fill-opacity=".15" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="4" width="24" height="3" fill="currentColor"/><rect x="4" y="11" width="7" height="2" rx="1" fill="currentColor"/></svg>Bancontact`;
+  bc.onclick=()=>{kaartModus=!kaartModus;gegeven=[];$('betaald').value='';tril();tekenBon();wissel(true)};s.appendChild(bc);
+  /* Elke tik telt op: 2 × €20 = twee keer op het briefje van €20 tikken */
+  [[500,()=>biljetSvg(5,'#d4d9cb','#9ea596','#4a5446',58),'€5'],[1000,()=>biljetSvg(10,'#f5b1a8','#d9675e','#87231c',58),'€10'],
+   [2000,()=>biljetSvg(20,'#a9c8f0','#5a8fd6','#1f4a8a',58),'€20'],[5000,()=>biljetSvg(50,'#ffc98a','#f0913a','#8f4708',58),'€50'],
+   [200,()=>muntSvg('2','EURO',34,'goud','zilver'),'2€'],[100,()=>muntSvg('1','EURO',32,'zilver','goud'),'1€'],
+   [50,()=>muntSvg('50','CENT',32,'goud'),'50 cent'],[20,()=>muntSvg('20','CENT',30,'goud'),'20 cent'],[10,()=>muntSvg('10','CENT',28,'goud'),'10 cent']].forEach(([c,svg,naam])=>{
+    const b=document.createElement('button');b.className='geldknop';b.innerHTML=svg();
+    b.setAttribute('aria-label',`Klant geeft ${naam}`);
+    b.onclick=()=>{if(kaartModus){kaartModus=false;tekenBon()}gegeven.push(c);$('betaald').value=(gegeven.reduce((x,y)=>x+y,0)/100).toFixed(2);tril();tekenGegeven();wissel();planPopup(1000)};
+    s.appendChild(b)});
+  tekenGegeven();
+  wissel();
+}
+/* Wisselgeld opsplitsen in briefjes en munten (grootste eerst), getekend als echte eurobriefjes/-munten (gestileerd) */
+let geldTeller=0;
+function biljetSvg(w,licht,basis,donker,breed){
+  const u='g'+(++geldTeller),h=Math.round(breed*.52);
+  const sterren=[...Array(12)].map((_,i)=>{const a=i*Math.PI/6;return `<circle cx="${(104+7*Math.cos(a)).toFixed(1)}" cy="${(13+7*Math.sin(a)).toFixed(1)}" r="1" fill="#ffd84a"/>`}).join('');
+  return `<svg class="biljet" width="${breed}" height="${h}" viewBox="0 0 120 62" role="img" aria-label="briefje ${w} euro">
+<defs><linearGradient id="b${u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${licht}"/><stop offset=".55" stop-color="${basis}"/><stop offset="1" stop-color="${licht}"/></linearGradient>
+<linearGradient id="h${u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".3" stop-color="#b9c3cc"/><stop offset=".5" stop-color="#ffffff"/><stop offset=".7" stop-color="#c6b7e0"/><stop offset="1" stop-color="#e9eef2"/></linearGradient></defs>
+<rect x=".5" y=".5" width="119" height="61" rx="3" fill="url(#b${u})" stroke="${donker}" stroke-opacity=".5"/>
+<path d="M44 52V28Q44 14 58 14Q72 14 72 28V52Z" fill="#fff" fill-opacity=".28" stroke="${donker}" stroke-opacity=".55" stroke-width="1.2"/>
+<path d="M50 52V30Q50 21 58 21Q66 21 66 30V52" fill="none" stroke="${donker}" stroke-opacity=".4" stroke-width="1"/>
+<path d="M38 52H78" stroke="${donker}" stroke-opacity=".5" stroke-width="1.2"/>
+<g stroke="${donker}" stroke-opacity=".18" fill="none"><path d="M0 40Q30 30 60 42T120 36"/><path d="M0 46Q30 36 60 48T120 42"/></g>
+<rect x="84" y="0.5" width="9" height="61" fill="url(#h${u})" opacity=".95"/>
+${sterren}
+<text x="6" y="24" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="22" fill="${donker}">${w}</text>
+<text x="114" y="56" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="13" fill="${donker}">${w}</text>
+<text x="6" y="56" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="8" letter-spacing="1" fill="${donker}" fill-opacity=".8">EURO</text>
+</svg>`;
+}
+function muntSvg(tekst,sub,maat,ring,kern){
+  const u='m'+(++geldTeller);
+  const vlak=(id,c)=>`<radialGradient id="${id}${u}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="${c[0]}"/><stop offset=".6" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></radialGradient>`;
+  const GOUD=['#fff0b3','#e0b445','#a97c18'],ZILVER=['#ffffff','#cfd5db','#8e979f'],KOPER=['#ffd2b0','#c9773f','#8a4a1f'];
+  const kl={goud:GOUD,zilver:ZILVER,koper:KOPER};
+  const r=kl[ring],k=kern?kl[kern]:null;
+  return `<svg class="munt" width="${maat}" height="${maat}" viewBox="0 0 40 40" role="img" aria-label="munt ${tekst} ${sub}">
+<defs>${vlak('r',r)}${k?vlak('k',k):''}</defs>
+<circle cx="20" cy="20" r="19.3" fill="url(#r${u})" stroke="${r[2]}" stroke-width="1.2" stroke-dasharray="1 .8"/>
+<circle cx="20" cy="20" r="16.8" fill="none" stroke="${r[2]}" stroke-opacity=".6" stroke-width=".8"/>
+${k?`<circle cx="20" cy="20" r="12.5" fill="url(#k${u})" stroke="${k[2]}" stroke-width=".8"/>`:''}
+<text x="20" y="${sub?23:25}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="${tekst.length>1?13:16}" fill="#3a2a05" fill-opacity=".85">${tekst}</text>
+${sub?`<text x="20" y="30.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="5.5" letter-spacing=".5" fill="#3a2a05" fill-opacity=".8">${sub}</text>`:''}
+</svg>`;
+}
+const GELD=[
+  [5000,'briefje','€50',()=>biljetSvg(50,'#ffc98a','#f0913a','#8f4708',84)],
+  [2000,'briefje','€20',()=>biljetSvg(20,'#a9c8f0','#5a8fd6','#1f4a8a',80)],
+  [1000,'briefje','€10',()=>biljetSvg(10,'#f5b1a8','#d9675e','#87231c',76)],
+  [500,'briefje','€5',()=>biljetSvg(5,'#d4d9cb','#9ea596','#4a5446',72)],
+  [200,'munt','2€',()=>muntSvg('2','EURO',38,'goud','zilver')],
+  [100,'munt','1€',()=>muntSvg('1','EURO',35,'zilver','goud')],
+  [50,'munt','50c',()=>muntSvg('50','CENT',36,'goud')],
+  [20,'munt','20c',()=>muntSvg('20','CENT',33,'goud')],
+  [10,'munt','10c',()=>muntSvg('10','CENT',30,'goud')],
+  [5,'munt','5c',()=>muntSvg('5','CENT',31,'koper')],
+  [2,'munt','2c',()=>muntSvg('2','CENT',28,'koper')],
+  [1,'munt','1c',()=>muntSvg('1','CENT',25,'koper')]];
+function geldHtml(cent){
+  let h='';const tel=[];
+  GELD.forEach(([waarde,soort,naam,teken])=>{let n=0;while(cent>=waarde){cent-=waarde;n++;h+=teken()}
+    if(n)tel.push(`${n} × ${soort} ${naam}`)});
+  return `<div class="geld" aria-hidden="true">${h}</div><div class="uitleg">${tel.join(' + ')}</div>`;
+}
+function wisselVlak(){
+  const t=totaal();const b=parseFloat(String($('betaald').value).replace(',','.'));
+  const w=$('wissel'),nb=$('nieuw');
+  nb.classList.toggle('kaart',kaartModus&&t>0);
+  if(t<=0){kaartModus=false;w.className='wissel';w.innerHTML='';nb.disabled=true;nb.textContent='Afgerekend, volgende klant';return}
+  if(kaartModus){
+    w.className='wissel kaart';w.innerHTML=`<div class="lbl">Bancontact: tik dit bedrag in op het betaaltoestel</div><div class="bedrag">${eur(t)}</div><div class="uitleg">Wacht tot het toestel "goedgekeurd" toont, en tik dan hieronder.</div>`;
+    nb.disabled=false;nb.textContent='✓ Betaald met Bancontact';
+    return}
+  if(isNaN(b)){w.className='wissel';w.innerHTML='';nb.disabled=true;nb.textContent='Kies eerst wat de klant geeft';return}
+  const r=Math.round(b*100)-Math.round(t*100);
+  if(r<0){
+    w.className='wissel neg';w.innerHTML=`<div class="lbl">Klant moet nog geven</div><div class="bedrag">${eur(-r/100)}</div>`;
+    nb.disabled=true;nb.textContent='Klant heeft nog niet genoeg gegeven';
+  }else if(r===0){
+    w.className='wissel gepast';w.innerHTML=`<div class="lbl">Gepast betaald</div><div class="bedrag">Niets teruggeven</div>`;
+    nb.disabled=false;nb.textContent='Afgerekend, volgende klant';
+  }else{
+    w.className='wissel ok';w.innerHTML=`<div class="lbl">Geef terug</div><div class="bedrag">${eur(r/100)}</div>${geldHtml(r)}`;
+    nb.disabled=false;nb.textContent='Afgerekend, volgende klant';
+  }
+}
+/* zichtbaar=true alleen bij Gepast en Bancontact: dan mag het vlak in beeld schuiven.
+   Bij briefjes/munten blijft het scherm stil; de korte balk boven de afrekenknop toont het resultaat. */
+function wissel(zichtbaar){
+  wisselVlak();
+  const w=$('wissel'),m=$('mini'),t=totaal();
+  const soort=['ok','neg','gepast','kaart'].find(c=>w.classList.contains(c));
+  if(!soort){m.hidden=true}else{
+    m.hidden=false;m.className='mini '+soort;
+    const b=parseFloat(String($('betaald').value).replace(',','.'));
+    const r=Math.round(b*100)-Math.round(t*100);
+    m.innerHTML={ok:()=>`<span>Geef terug <b>${eur(r/100)}</b></span><small>munten ↓</small>`,
+      neg:()=>`<span>Nog te geven <b>${eur(-r/100)}</b></span>`,
+      gepast:()=>`<span>Gepast, niets teruggeven</span>`,
+      kaart:()=>`<span>Bancontact <b>${eur(t)}</b></span><small>op het toestel</small>`}[soort]();
+  }
+  if(zichtbaar)requestAnimationFrame(()=>w.scrollIntoView({block:'nearest',behavior:'smooth'}));
+}
+$('mini').onclick=()=>{const r=wisselgeld();if(r>0)toonPopup(r);else $('wissel').scrollIntoView({block:'nearest',behavior:'smooth'})};
+/* Popup: verschijnt vanzelf zodra je even stopt met geld aantikken en er wisselgeld is */
+let popupTimer=0;
+function wisselgeld(){
+  const t=totaal(),b=parseFloat(String($('betaald').value).replace(',','.'));
+  if(t<=0||isNaN(b)||kaartModus)return 0;
+  return Math.round(b*100)-Math.round(t*100);
+}
+function planPopup(ms){clearTimeout(popupTimer);popupTimer=setTimeout(()=>{const r=wisselgeld();if(r>0)toonPopup(r)},ms)}
+function toonPopup(r){
+  $('pBedrag').textContent=eur(r/100);$('pGeld').innerHTML=geldHtml(r);
+  $('popup').hidden=false;$('pKlaar').focus();
+}
+function sluitPopup(){clearTimeout(popupTimer);$('popup').hidden=true}
+$('pTerug').onclick=sluitPopup;
+$('pKlaar').onclick=()=>{sluitPopup();$('nieuw').click()};
+$('popup').onclick=e=>{if(e.target.id==='popup')sluitPopup()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('popup').hidden)sluitPopup()});
+function teken(){tekenGrid();tekenBon()}
+
+$('betaald').oninput=()=>{if(kaartModus){kaartModus=false;tekenBon()}gegeven=[];tekenGegeven();wissel();planPopup(1800)};
+$('nieuw').onclick=()=>{
+  if($('nieuw').disabled)return;
+  const t=totaal();
+  if(t>0){
+    dag.bedrag+=t;dag.klanten++;if(kaartModus)dag.kaart=(dag.kaart||0)+t;
+    Object.entries(bon).forEach(([i,n])=>{
+      const k=knoppen[i];if(!k||n<=0)return;
+      const sleutel=(k.naam||'Drankje')+'|'+k.prijs;
+      if(!dag.items[sleutel])dag.items[sleutel]={naam:k.naam||'Drankje',prijs:k.prijs,aantal:0};
+      dag.items[sleutel].aantal+=n;
+    });
+    schrijf('kassa-dag',dag);
+  }
+  sluitPopup();bon={};historie=[];gegeven=[];kaartModus=false;$('betaald').value='';tril();teken()};
+$('undo').onclick=()=>{
+  while(historie.length){const i=historie.pop();if(bon[i]>0){bon[i]--;if(bon[i]<=0)delete bon[i];break}}
+  tril();teken()};
+let wisKlik=0;
+$('wisbon').onclick=()=>{
+  if(!wisKlik){wisKlik=1;$('wisbon').textContent='Zeker?';setTimeout(()=>{wisKlik=0;$('wisbon').textContent='Wis alles'},3000);return}
+  wisKlik=0;$('wisbon').textContent='Wis alles';sluitPopup();bon={};historie=[];gegeven=[];kaartModus=false;$('betaald').value='';teken()};
+
+/* Dagoverzicht (admin) */
+function tekenDag(){
+  const rijen=Object.values(dag.items).sort((a,b)=>b.prijs*b.aantal-a.prijs*a.aantal);
+  const stuks=rijen.reduce((s,r)=>s+r.aantal,0);
+  $('sinds').textContent='Sinds '+new Date(dag.sinds).toLocaleString('nl-BE',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
+  $('sOmzet').textContent=eur(dag.bedrag);
+  $('sKlanten').textContent=dag.klanten;
+  $('sGem').textContent=dag.klanten?eur(dag.bedrag/dag.klanten):'–';
+  $('sStuks').textContent=stuks;
+  $('sKaart').textContent=eur(dag.kaart||0);
+  $('sCash').textContent=eur(dag.bedrag-(dag.kaart||0));
+  const tb=$('sRijen');tb.innerHTML='';
+  if(!rijen.length){tb.innerHTML='<tr><td colspan="4" class="leeg">Nog niets verkocht.</td></tr>';return}
+  rijen.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td></td><td>${eur(r.prijs)}</td><td>${r.aantal}</td><td>${eur(r.prijs*r.aantal)}</td>`;
+    tr.firstChild.textContent=r.naam;tb.appendChild(tr);
+  });
+}
+let resetKlik=0;
+$('dagReset').onclick=()=>{
+  if(!resetKlik){resetKlik=1;$('dagReset').textContent='Zeker? Tik nog eens';setTimeout(()=>{resetKlik=0;$('dagReset').textContent='Dag op nul'},3000);return}
+  dag=legeDag();schrijf('kassa-dag',dag);resetKlik=0;$('dagReset').textContent='Dag op nul';tekenDag()};
+
+function bewaar(){schrijf('kassa-knoppen',knoppen)}
+function tekenInstel(){
+  tekenDag();
+  const c=$('kaarten');c.innerHTML='';
+  knoppen.forEach((k,i)=>{
+    const d=document.createElement('div');d.className='kaart';
+    d.innerHTML=`
+      <label for="naam${i}">Drankjes</label><input type="text" id="naam${i}" placeholder="bv. Cola / Fanta / Sprite">
+      <label for="prijs${i}">Prijs (€)</label><input type="number" id="prijs${i}" step="0.01" inputmode="decimal">
+      <label>Icoon</label><div class="icons"></div>
+      <div class="acties">
+        ${k.img?`<img src="${k.img}" alt="Eigen afbeelding">`:''}
+        <label class="file" for="img${i}">${k.img?'Andere afbeelding':'Eigen afbeelding / logo'}</label>
+        <input type="file" id="img${i}" accept="image/*" hidden>
+        ${k.img?'<button class="geenimg">Afbeelding weghalen</button>':''}
+        <button class="weg">Knop verwijderen</button>
+      </div>`;
+    const naam=d.querySelector('#naam'+i);naam.value=k.naam;naam.oninput=()=>{k.naam=naam.value;bewaar()};
+    const pr=d.querySelector('#prijs'+i);pr.value=k.prijs;pr.oninput=()=>{k.prijs=parseFloat(pr.value)||0;bewaar()};
+    const ic=d.querySelector('.icons');
+    ICONEN.forEach(x=>{const b=document.createElement('button');
+      if(x.startsWith('svg:')){b.innerHTML=icoHtml(x,'');b.setAttribute('aria-label',{'svg:cola':'Longdrink met cola','svg:energy':'Longdrink met energiedrank','svg:shot':'Shot','svg:shotrood':'Rode shot','svg:rum':'Rumshot 80°'}[x])}else b.textContent=x;
+      b.setAttribute('aria-pressed',x===k.ico);
+      b.onclick=()=>{k.ico=x;bewaar();tekenInstel()};ic.appendChild(b)});
+    d.querySelector('#img'+i).onchange=e=>{const f=e.target.files[0];if(!f)return;
+      const r=new FileReader();r.onload=ev=>{verklein(ev.target.result,u=>{k.img=u;bewaar();tekenInstel()})};r.readAsDataURL(f)};
+    const g=d.querySelector('.geenimg');if(g)g.onclick=()=>{k.img='';bewaar();tekenInstel()};
+    const w=d.querySelector('.weg');let zeker=false;
+    w.onclick=()=>{if(!zeker){zeker=true;w.textContent='Zeker? Tik nog eens';return}knoppen.splice(i,1);bon={};historie=[];bewaar();tekenInstel()};
+    c.appendChild(d);
+  });
+}
+function verklein(src,cb){const im=new Image();im.onload=()=>{const m=160,s=Math.min(1,m/Math.max(im.width,im.height));
+  const cv=document.createElement('canvas');cv.width=im.width*s;cv.height=im.height*s;cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+  cb(cv.toDataURL('image/png'))};im.src=src}
+$('plus').onclick=()=>{knoppen.push({prijs:0,naam:'',ico:'🥤',img:''});bewaar();tekenInstel()};
+
+/* Pincode voor Admin: 4 cijfers, gehasht op dit toestel bewaard. Admin vergrendelt weer zodra je naar Kassa gaat. */
+const PINKEY='kassa-pin';
+let adminOpen=false,pinFase='check',pinEerste='',invoer='';
+async function hash(s){
+  try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('drankkassa:'+s));
+    return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return 'p:'+s}}
+function pinTekst(fout){
+  $('pinTitel').textContent={check:'Pincode voor Admin',nieuw:'Kies een pincode (4 cijfers)',herhaal:'Herhaal de pincode'}[pinFase];
+  $('pinFout').textContent=fout||'';
+  [...$('dots').children].forEach((d,i)=>d.classList.toggle('vol',i<invoer.length));
+  if(fout){const d=$('dots');d.classList.remove('schud');void d.offsetWidth;d.classList.add('schud')}
+}
+function startPin(fase){pinFase=fase;invoer='';toonView('pin');pinTekst()}
+function druk(c){
+  if(c==='⌫'){invoer=invoer.slice(0,-1);pinTekst();return}
+  if(c==='Wis'){invoer='';pinTekst();return}
+  if(invoer.length>=4)return;
+  invoer+=c;pinTekst();
+  if(invoer.length===4)setTimeout(verwerk,150);
+}
+async function verwerk(){
+  const code=invoer;invoer='';
+  if(pinFase==='check'){
+    if(await hash(code)===lees(PINKEY,null)){adminOpen=true;toon('instel')}else pinTekst('Verkeerde pincode');
+  }else if(pinFase==='nieuw'){pinEerste=code;pinFase='herhaal';pinTekst()}
+  else{
+    if(code===pinEerste){schrijf(PINKEY,await hash(code));adminOpen=true;toon('instel')}
+    else{pinFase='nieuw';pinTekst('Komt niet overeen, probeer opnieuw')}
+  }
+}
+['1','2','3','4','5','6','7','8','9','Wis','0','⌫'].forEach(c=>{
+  const b=document.createElement('button');b.textContent=c;
+  if(c==='Wis'||c==='⌫'){b.className='klein';b.setAttribute('aria-label',c==='⌫'?'Laatste cijfer wissen':'Alles wissen')}
+  b.onclick=()=>druk(c);$('pad').appendChild(b)});
+document.addEventListener('keydown',e=>{
+  if($('pin').hidden)return;
+  if(/^[0-9]$/.test(e.key))druk(e.key);else if(e.key==='Backspace')druk('⌫');
+});
+$('pinWijzig').onclick=()=>startPin('nieuw');
+
+function toonView(v){
+  $('kopTotaal').hidden=v!=='kassa';document.querySelector('header').classList.toggle('met-totaal',v==='kassa');
+  $('kassa').hidden=v!=='kassa';$('instel').hidden=v!=='instel';$('pin').hidden=v!=='pin';
+  $('tabKassa').setAttribute('aria-pressed',v==='kassa');$('tabInstel').setAttribute('aria-pressed',v!=='kassa');
+}
+function toon(v){
+  if(v==='instel'&&!adminOpen){startPin(lees(PINKEY,null)?'check':'nieuw');return}
+  if(v==='kassa')adminOpen=false;
+  toonView(v);
+  v==='kassa'?teken():tekenInstel();
+}
+$('tabKassa').onclick=()=>toon('kassa');$('tabInstel').onclick=()=>toon('instel');
+toon('kassa');
+
+/* App: werkt offline na de eerste keer openen (service worker) en vraagt het toestel de gegevens niet op te ruimen */
+if('serviceWorker' in navigator)addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+</script>
+
+</body></html>
