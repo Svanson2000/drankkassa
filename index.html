@@ -56,6 +56,20 @@ header h1{font-family:var(--display);font-size:26px;margin:0;letter-spacing:.02e
 .kop-totaal span{font-size:14px;color:var(--muted);font-weight:600}
 .kop-totaal b{font-family:var(--display);font-size:36px;font-weight:700;line-height:1}
 .kop-totaal.leeg b{color:var(--muted)}
+.kop-aantal{display:flex;align-items:baseline;gap:6px;background:var(--ok-bg);color:var(--ok-fg);border:2px solid var(--ok-line);border-radius:12px;padding:0 14px;margin-right:6px;white-space:nowrap}
+.kop-aantal b{font-family:var(--display);font-size:44px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.kop-aantal span{font-size:17px;font-weight:700;color:inherit}
+.key.eigen{border:2px dashed var(--accent);background:var(--surface)}
+.key.eigen .prijs{font-size:20px}
+.ekaart{width:100%;max-width:340px;max-height:100%;overflow:auto;background:var(--surface);color:var(--fg);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px #0005;animation:pop .18s ease-out}
+.ekaart .lbl{font-size:18px;font-weight:700;text-align:center}
+.ebedrag{font-family:var(--display);font-size:56px;font-weight:700;line-height:1;text-align:center;font-variant-numeric:tabular-nums;color:var(--accent);background:var(--bg);border-radius:12px;padding:10px}
+.ekaart .pad button{height:58px}
+.ekaart .nieuw:disabled{opacity:.45}
+.ekaart .terug{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;padding:12px;font-weight:600}
+.paantal{font-size:18px;font-weight:700;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid var(--ok-line)}
+.paantal b{font-family:var(--display);font-size:40px;line-height:1}
+.paantal small{font-size:15px;font-weight:600;margin-left:auto}
 aside{overflow:auto}
 
 .tabs{display:flex;gap:6px;background:var(--chip);padding:4px;border-radius:10px}
@@ -230,6 +244,11 @@ aside .bonkop h2{margin:0}
   header.met-totaal .kop-totaal{margin-left:0}
   .totaal{display:none}
   .kop-totaal b{font-size:32px}
+  .kop-aantal{padding:2px 8px;margin-right:0;flex-direction:column;align-items:center;gap:0}.kop-aantal b{font-size:30px;line-height:1}.kop-aantal span{font-size:11px;line-height:1.1}
+  header.met-totaal .kop-totaal>span{display:none}
+  header.met-totaal .kop-totaal{gap:8px;align-items:center}
+  header.met-totaal .tabs button{padding-inline:10px}
+  header.met-totaal{gap:8px}
   #lijst{flex:none;overflow:visible;min-height:0}
   /* Afrekenknop blijft altijd zichtbaar onderaan de bestelling */
   /* Vaste voet onderaan: korte statusbalk + afrekenknop, zodat het scherm niet hoeft te verspringen */
@@ -245,7 +264,7 @@ aside .bonkop h2{margin:0}
 
 <header>
   <h1>Drankkassa</h1>
-  <div class="kop-totaal" id="kopTotaal" aria-live="polite"><span>Totaal</span><b id="kopBedrag">€0,00</b></div>
+  <div class="kop-totaal" id="kopTotaal" aria-live="polite"><div class="kop-aantal" id="kopAantal" hidden><b id="kopStuks">0</b><span id="kopStuksW">drankjes</span></div><span>Totaal</span><b id="kopBedrag">€0,00</b></div>
   <div class="tabs" role="group" aria-label="Weergave">
     <button id="tabKassa" aria-pressed="true">Kassa</button>
     <button id="tabInstel" aria-pressed="false">Admin</button>
@@ -272,8 +291,21 @@ aside .bonkop h2{margin:0}
   </aside>
 </main>
 
+<div id="eigen" class="popup" hidden role="dialog" aria-modal="true" aria-labelledby="eLbl">
+  <div class="ekaart">
+    <div class="lbl" id="eLbl">Zelf prijs ingeven</div>
+    <div class="ebedrag" id="eBedrag" aria-live="polite">€0</div>
+    <div class="pad" id="ePad"></div>
+    <div class="pknoppen">
+      <button class="nieuw" id="eOk">Toevoegen</button>
+      <button class="terug" id="eAnnul">Annuleren</button>
+    </div>
+  </div>
+</div>
+
 <div id="popup" class="popup" hidden role="dialog" aria-modal="true" aria-labelledby="pLbl">
   <div class="pkaart">
+    <div class="paantal" id="pAantal"></div>
     <div class="lbl" id="pLbl">Geef terug</div>
     <div class="bedrag" id="pBedrag"></div>
     <div id="pGeld"></div>
@@ -596,8 +628,9 @@ const eur=n=>'€'+(Math.round(n*100)/100).toFixed(2).replace('.',',');
 const $=id=>document.getElementById(id);
 
 /* Een regel op de bon is een gewone knop (index) of de promo ('p') */
-let promoArt=null;
-const art=i=>i==='p'?promoArt:knoppen[i];
+const extra={}; // 'p' = promo, 'a<cent>' = zelf ingegeven prijs
+const art=i=>extra[i]||knoppen[i];
+const aantalStuks=()=>Object.entries(bon).reduce((s,[i,n])=>s+(art(i)?n:0),0);
 function totaal(){return Object.entries(bon).reduce((s,[i,n])=>s+(art(i)?art(i).prijs*n:0),0)}
 
 function tekenGrid(){
@@ -609,7 +642,7 @@ function tekenGrid(){
     b.innerHTML=`<span class="tag">PROMO</span><span class="ico" aria-hidden="true">🎉</span><span class="naam"></span><span class="prijs">${eur(p.prijs)}</span>${bon.p?`<span class="aantal">${bon.p}×</span>`:''}`;
     b.querySelector('.naam').textContent=p.naam;
     b.setAttribute('aria-label',`Promo ${p.naam} ${eur(p.prijs)} toevoegen`);
-    b.onclick=()=>{promoArt={naam:'Promo: '+p.naam,prijs:p.prijs,ico:'🎉',img:''};bon.p=(bon.p||0)+1;historie.push('p');tril();teken();const nk=g.querySelector('[data-i="p"]');if(nk)nk.classList.add('tik')};
+    b.onclick=()=>{extra.p={naam:'Promo: '+p.naam,prijs:p.prijs,ico:'🎉',img:''};bon.p=(bon.p||0)+1;historie.push('p');tril();teken();const nk=g.querySelector('[data-i="p"]');if(nk)nk.classList.add('tik')};
     g.appendChild(b);
   }
   knoppen.forEach((k,i)=>{
@@ -621,7 +654,45 @@ function tekenGrid(){
     b.onclick=()=>{bon[i]=(bon[i]||0)+1;historie.push(i);tril();teken();const nk=$('grid').querySelector(`[data-i="${i}"]`);if(nk)nk.classList.add('tik')};
     g.appendChild(b);
   });
+  /* Knop om zelf een prijs in te geven */
+  const e=document.createElement('button');e.className='key eigen';e.dataset.i='eigen';
+  const nEigen=Object.keys(bon).filter(k=>k[0]==='a').reduce((s,k)=>s+bon[k],0);
+  e.innerHTML=`<span class="ico" aria-hidden="true">✏️</span><span class="naam">Aangepast</span><span class="prijs">Zelf prijs</span>${nEigen?`<span class="aantal">${nEigen}×</span>`:''}`;
+  e.setAttribute('aria-label','Aangepast: zelf een prijs ingeven');
+  e.onclick=()=>{tril();openEigen()};
+  g.appendChild(e);
 }
+/* Zelf prijs ingeven: cijferklavier met komma, max 2 cijfers na de komma */
+let eInvoer='';
+function eigenWaarde(){const v=parseFloat(eInvoer.replace(',','.'));return isNaN(v)?0:v}
+function eigenTekst(){$('eBedrag').textContent='€'+(eInvoer||'0');$('eOk').disabled=!(eigenWaarde()>0)}
+function openEigen(){sluitPopup();eInvoer='';eigenTekst();$('eigen').hidden=false}
+function sluitEigen(){$('eigen').hidden=true}
+function eigenDruk(c){
+  if(c==='⌫'){eInvoer=eInvoer.slice(0,-1)}
+  else if(c===','){if(!eInvoer.includes(','))eInvoer=(eInvoer||'0')+','}
+  else{const [h,d]=eInvoer.split(',');
+    if(d!==undefined){if(d.length<2)eInvoer+=c}
+    else if(h.length<4)eInvoer=(h==='0'?'':h)+c}
+  eigenTekst();
+}
+['1','2','3','4','5','6','7','8','9',',','0','⌫'].forEach(c=>{
+  const b=document.createElement('button');b.textContent=c;
+  if(c==='⌫'){b.className='klein';b.setAttribute('aria-label','Laatste cijfer wissen')}
+  if(c===',')b.setAttribute('aria-label','Komma');
+  b.onclick=()=>{tril();eigenDruk(c)};$('ePad').appendChild(b)});
+$('eOk').onclick=()=>{
+  const cent=Math.round(eigenWaarde()*100);if(cent<=0)return;
+  const k='a'+cent;extra[k]={naam:'Aangepast',prijs:cent/100,ico:'✏️',img:''};
+  bon[k]=(bon[k]||0)+1;historie.push(k);sluitEigen();tril();teken();
+  const nk=$('grid').querySelector('[data-i="eigen"]');if(nk)nk.classList.add('tik')};
+$('eAnnul').onclick=sluitEigen;
+$('eigen').onclick=e=>{if(e.target.id==='eigen')sluitEigen()};
+document.addEventListener('keydown',e=>{
+  if($('eigen').hidden)return;
+  if(/^[0-9]$/.test(e.key))eigenDruk(e.key);else if(e.key===','||e.key==='.')eigenDruk(',');
+  else if(e.key==='Backspace')eigenDruk('⌫');else if(e.key==='Enter')$('eOk').click();else if(e.key==='Escape')sluitEigen();
+});
 function tekenBon(){
   const l=$('lijst');l.innerHTML='';
   const items=Object.entries(bon).filter(([i,n])=>n>0&&art(i));
@@ -635,6 +706,7 @@ function tekenBon(){
   });
   $('undo').disabled=!historie.length;$('wisbon').disabled=!items.length;
   const t=totaal();$('totaal').textContent=eur(t);$('kopBedrag').textContent=eur(t);$('kopTotaal').classList.toggle('leeg',t<=0);
+  const st=aantalStuks();$('kopAantal').hidden=!st;$('kopStuks').textContent=st;$('kopStuksW').textContent=st===1?'drankje':'drankjes';
   const s=$('snel');s.innerHTML='';
   const gp=document.createElement('button');gp.className='gepastknop';gp.textContent='Gepast';
   gp.onclick=()=>{kaartModus=false;gegeven=[];$('betaald').value=t.toFixed(2);tril();tekenBon();wissel(true)};s.appendChild(gp);
@@ -757,6 +829,7 @@ function wisselgeld(){
 function planPopup(ms){clearTimeout(popupTimer);popupTimer=setTimeout(()=>{const r=wisselgeld();if(r>0)toonPopup(r)},ms)}
 function toonPopup(r){
   $('pBedrag').textContent=eur(r/100);$('pGeld').innerHTML=geldHtml(r);
+  const st=aantalStuks();$('pAantal').innerHTML=`<b>${st}</b> ${st===1?'drankje':'drankjes'}<small>totaal ${eur(totaal())}</small>`;
   $('popup').hidden=false;$('pKlaar').focus();
 }
 function sluitPopup(){clearTimeout(popupTimer);$('popup').hidden=true}
