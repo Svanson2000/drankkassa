@@ -1054,7 +1054,21 @@ toon('kassa');
 controleerPromo();
 
 /* App: werkt offline na de eerste keer openen (service worker) en vraagt het toestel de gegevens niet op te ruimen */
-if('serviceWorker' in navigator)addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});
+/* Nieuwe versie binnen? Dan meteen herladen, maar nooit midden in een bestelling of in Admin. */
+let nieuweVersie=false;
+function probeerHerladen(){
+  if(!nieuweVersie)return;
+  const leeg=!Object.keys(bon).length&&!gegeven.length&&!$('betaald').value;
+  if(leeg&&!$('kassa').hidden&&$('popup').hidden&&$('eigen').hidden){nieuweVersie=false;location.reload()}
+}
+if('serviceWorker' in navigator){
+  const hadSw=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadSw){nieuweVersie=true;probeerHerladen()}});
+  addEventListener('load',()=>{navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update().catch(()=>{})});
+  }).catch(()=>{})});
+  setInterval(probeerHerladen,5000);
+}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 </script>
 
