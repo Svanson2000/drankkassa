@@ -15,6 +15,8 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="stylesheet" href="fonts/fonts.css">
+<script>/* Gekozen achtergrond (wit/donker) meteen toepassen, zonder flits */
+try{var t=JSON.parse(localStorage.getItem('kassa-thema'));if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
 html{-webkit-text-size-adjust:100%;touch-action:manipulation}
 body{margin:0;overscroll-behavior:none}
@@ -186,6 +188,11 @@ aside .bonkop h2{margin:0}
 .pad button:active{background:var(--chip)}
 .pad .klein{font-family:var(--body);font-size:15px;font-weight:600;color:var(--muted)}
 .adminknoppen{display:flex;flex-wrap:wrap;gap:8px}
+.themakeuze{display:flex;gap:6px;background:var(--chip);padding:4px;border-radius:12px;flex-wrap:wrap}
+.themakeuze button{flex:1;min-width:110px;border:0;background:transparent;color:var(--fg);padding:12px 14px;border-radius:9px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.themakeuze button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px #0003;outline:2px solid var(--accent)}
+.themakeuze .staal{width:22px;height:22px;border-radius:6px;border:1px solid #8888;flex:none}
+:root[data-theme="dark"] .key.promo{background:linear-gradient(160deg,#3b0d2a,#21163f)}:root[data-theme="dark"] .key.promo .naam{color:#e9d5ff}:root[data-theme="dark"] .key.promo .prijs{color:#f9a8d4}
 .adminknoppen button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 12px;font-size:14px}
 .reset{align-self:flex-start;border:1px solid var(--line);background:var(--bg);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:14px}
 .kaart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;grid-template-columns:110px 1fr;gap:10px 14px;align-items:center}
@@ -338,6 +345,18 @@ aside .bonkop h2{margin:0}
       <div class="adminknoppen">
         <button class="reset" id="dagReset">Dag op nul</button>
         <button id="pinWijzig">Pincode wijzigen</button>
+      </div>
+    </section>
+
+    <section class="blok" aria-labelledby="kopThema">
+      <div>
+        <h2 class="blokkop" id="kopThema">Achtergrond</h2>
+        <p class="hint">Kies een witte of donkere achtergrond. "Automatisch" volgt de instelling van het toestel. Geldt voor dit toestel.</p>
+      </div>
+      <div class="themakeuze" id="themaKeuze" role="group" aria-label="Achtergrond">
+        <button data-thema="light"><span class="staal" style="background:#ffffff"></span>Wit</button>
+        <button data-thema="dark"><span class="staal" style="background:#1b221e"></span>Donker</button>
+        <button data-thema="auto"><span class="staal" style="background:linear-gradient(135deg,#ffffff 50%,#1b221e 50%)"></span>Automatisch</button>
       </div>
     </section>
 
@@ -910,6 +929,16 @@ $('dagReset').onclick=()=>{
   dag=legeDag();schrijf('kassa-dag',dag);resetKlik=0;$('dagReset').textContent='Dag op nul';tekenDag()};
 
 function bewaar(){schrijf('kassa-knoppen',knoppen)}
+/* Achtergrond: wit, donker of automatisch (volgt het toestel) */
+function zetThema(t){
+  if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;else{delete document.documentElement.dataset.theme;t='auto'}
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{
+    const eigen=m.media.includes('dark')?'#1b221e':'#ffffff';
+    m.content=t==='light'?'#ffffff':t==='dark'?'#1b221e':eigen});
+  document.querySelectorAll('#themaKeuze button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.thema===t));
+}
+document.querySelectorAll('#themaKeuze button').forEach(b=>b.onclick=()=>{tril();schrijf('kassa-thema',b.dataset.thema);zetThema(b.dataset.thema)});
+zetThema(lees('kassa-thema','auto'));
 function tekenInstel(){
   tekenDag();tekenPromos();
   const c=$('kaarten');c.innerHTML='';
