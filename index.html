@@ -481,8 +481,8 @@ const ICONEN=['☕','🍵','🥤','🧃','💧','🍺','🍷','🥂','🍸','�
 const VOORBEELD=[
   {prijs:2.8,naam:'Koffie / Thee',ico:'☕'},
   {prijs:3,naam:'Frisdrank / Water',ico:'🥤'},
-  {prijs:4,naam:'Bier',ico:'🍺'},
-  {prijs:6.5,naam:'Wijn',ico:'🍷'},
+  {prijs:3,naam:'Bier',ico:'🍺'},
+  {prijs:5,naam:'Wijn',ico:'🍷'},
   {prijs:7.5,naam:'Cocktail',ico:'🍹'},
   {prijs:9.5,naam:'Cava',ico:'🥂'},
   {prijs:10,naam:'Sterke drank',ico:'🥃'}
@@ -529,6 +529,11 @@ if(!lees('kassa-volgorde-v1',false)){
   schrijf('kassa-knoppen',knoppen);schrijf('kassa-eigenpos',eigenPos);schrijf('kassa-volgorde-v1',true);
 }
 if(typeof eigenPos!=='number')eigenPos=knoppen.length;
+/* Eenmalig: bier €3, wijn €5 */
+if(!lees('kassa-prijzen-v1',false)){
+  knoppen.forEach(k=>{const n=(k.naam||'').trim().toLowerCase();if(/^bier/.test(n))k.prijs=3;if(/^wijn/.test(n))k.prijs=5});
+  schrijf('kassa-knoppen',knoppen);schrijf('kassa-prijzen-v1',true);
+}
 let dag=lees('kassa-dag',legeDag());
 if(!dag.items)dag.items={};
 if(!dag.kaart)dag.kaart=0;
