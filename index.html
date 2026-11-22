@@ -188,6 +188,9 @@ aside .bonkop h2{margin:0}
 .pad button:active{background:var(--chip)}
 .pad .klein{font-family:var(--body);font-size:15px;font-weight:600;color:var(--muted)}
 .adminknoppen{display:flex;flex-wrap:wrap;gap:8px}
+.themaknop{flex:none;width:42px;height:42px;border:1px solid var(--line);background:var(--chip);color:var(--fg);border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0}
+.themaknop svg{width:22px;height:22px}
+.themaknop:active{transform:scale(.94)}
 .themakeuze{display:flex;gap:6px;background:var(--chip);padding:4px;border-radius:12px;flex-wrap:wrap}
 .themakeuze button{flex:1;min-width:110px;border:0;background:transparent;color:var(--fg);padding:12px 14px;border-radius:9px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
 .themakeuze button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px #0003;outline:2px solid var(--accent)}
@@ -255,6 +258,7 @@ aside .bonkop h2{margin:0}
   header.met-totaal .kop-totaal>span{display:none}
   header.met-totaal .kop-totaal{gap:8px;align-items:center}
   header.met-totaal .tabs button{padding-inline:10px}
+  .themaknop{width:36px;height:36px}.themaknop svg{width:19px;height:19px}
   header.met-totaal{gap:8px}
   #lijst{flex:none;overflow:visible;min-height:0}
   /* Afrekenknop blijft altijd zichtbaar onderaan de bestelling */
@@ -266,12 +270,21 @@ aside .bonkop h2{margin:0}
   .stats{grid-template-columns:repeat(2,1fr)}
   .stats b{font-size:26px}
 }
+@media (max-width:400px){
+  header.met-totaal{gap:6px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+  header.met-totaal .kop-totaal{gap:6px}
+  .kop-totaal b{font-size:28px}
+  .kop-aantal b{font-size:26px}
+  header.met-totaal .tabs{padding:3px;gap:3px}
+  header.met-totaal .tabs button{padding-inline:8px}
+}
 @media (prefers-reduced-motion:reduce){.key{transition:none}.key.tik{animation:none}.dots.schud{animation:none}}
 </style>
 
 <header>
   <h1>Drankkassa</h1>
   <div class="kop-totaal" id="kopTotaal" aria-live="polite"><div class="kop-aantal" id="kopAantal" hidden><b id="kopStuks">0</b><span id="kopStuksW">drankjes</span></div><span>Totaal</span><b id="kopBedrag">€0,00</b></div>
+  <button class="themaknop" id="themaKnop" aria-label="Wissel tussen witte en donkere achtergrond"></button>
   <div class="tabs" role="group" aria-label="Weergave">
     <button id="tabKassa" aria-pressed="true">Kassa</button>
     <button id="tabInstel" aria-pressed="false">Admin</button>
@@ -936,7 +949,17 @@ function zetThema(t){
     const eigen=m.media.includes('dark')?'#1b221e':'#ffffff';
     m.content=t==='light'?'#ffffff':t==='dark'?'#1b221e':eigen});
   document.querySelectorAll('#themaKeuze button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.thema===t));
+  /* Knop in de kopbalk toont waar je naartoe wisselt: zon = naar wit, maan = naar donker */
+  const d=isDonker();$('themaKnop').innerHTML=d
+    ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>'
+    :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="currentColor"/></svg>';
+  $('themaKnop').title=d?'Witte achtergrond':'Donkere achtergrond';
+  $('themaKnop').setAttribute('aria-label',d?'Wissel naar witte achtergrond':'Wissel naar donkere achtergrond');
 }
+const donkerMQ=matchMedia('(prefers-color-scheme: dark)');
+function isDonker(){const t=document.documentElement.dataset.theme;return t?t==='dark':donkerMQ.matches}
+$('themaKnop').onclick=()=>{const t=isDonker()?'light':'dark';tril();schrijf('kassa-thema',t);zetThema(t)};
+try{donkerMQ.addEventListener('change',()=>zetThema(lees('kassa-thema','auto')))}catch(e){}
 document.querySelectorAll('#themaKeuze button').forEach(b=>b.onclick=()=>{tril();schrijf('kassa-thema',b.dataset.thema);zetThema(b.dataset.thema)});
 zetThema(lees('kassa-thema','auto'));
 function tekenInstel(){
