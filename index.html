@@ -516,6 +516,19 @@ if(!lees('kassa-water-v1',false)){
   });
   schrijf('kassa-knoppen',knoppen);schrijf('kassa-water-v1',true);
 }
+/* Eenmalig: vaste volgorde van de knoppen. "Aangepast" staat tussen Ströh rum en Cocktail (eigenPos = aantal knoppen ervoor). */
+let eigenPos=lees('kassa-eigenpos',null);
+if(!lees('kassa-volgorde-v1',false)){
+  const n=k=>(k.naam||'').trim().toLowerCase();
+  const REGELS=[k=>n(k)==='water'||k.ico==='💧',k=>/frisdrank/.test(n(k)),k=>/^bier/.test(n(k)),k=>k.ico==='svg:cola',k=>k.ico==='svg:energy',
+    k=>k.ico==='svg:shot',k=>k.ico==='svg:shotrood',k=>/^wijn/.test(n(k)),k=>/cava/.test(n(k)),k=>/grey goose/.test(n(k)),k=>k.ico==='svg:rum'||/str[oö]h/.test(n(k)),
+    k=>/cocktail/.test(n(k))];
+  const rang=k=>{const r=REGELS.findIndex(f=>f(k));return r<0?99:r};
+  knoppen=knoppen.map((k,i)=>({k,r:rang(k),i})).sort((a,b)=>a.r-b.r||a.i-b.i).map(x=>x.k);
+  eigenPos=knoppen.filter(k=>rang(k)<11).length;
+  schrijf('kassa-knoppen',knoppen);schrijf('kassa-eigenpos',eigenPos);schrijf('kassa-volgorde-v1',true);
+}
+if(typeof eigenPos!=='number')eigenPos=knoppen.length;
 let dag=lees('kassa-dag',legeDag());
 if(!dag.items)dag.items={};
 if(!dag.kaart)dag.kaart=0;
@@ -645,7 +658,9 @@ function tekenGrid(){
     b.onclick=()=>{extra.p={naam:'Promo: '+p.naam,prijs:p.prijs,ico:'🎉',img:''};bon.p=(bon.p||0)+1;historie.push('p');tril();teken();const nk=g.querySelector('[data-i="p"]');if(nk)nk.classList.add('tik')};
     g.appendChild(b);
   }
+  const pos=Math.max(0,Math.min(eigenPos,knoppen.length));
   knoppen.forEach((k,i)=>{
+    if(i===pos)g.appendChild(eigenKnop());
     const b=document.createElement('button');b.className='key';b.dataset.i=i;
     const beeld=k.img?`<img src="${k.img}" alt="">`:icoHtml(k.ico,'ico');
     b.innerHTML=`${beeld}<span class="naam"></span><span class="prijs">${eur(k.prijs)}</span>${bon[i]?`<span class="aantal">${bon[i]}×</span>`:''}`;
@@ -654,13 +669,16 @@ function tekenGrid(){
     b.onclick=()=>{bon[i]=(bon[i]||0)+1;historie.push(i);tril();teken();const nk=$('grid').querySelector(`[data-i="${i}"]`);if(nk)nk.classList.add('tik')};
     g.appendChild(b);
   });
-  /* Knop om zelf een prijs in te geven */
+  if(pos>=knoppen.length)g.appendChild(eigenKnop());
+}
+/* Knop om zelf een prijs in te geven */
+function eigenKnop(){
   const e=document.createElement('button');e.className='key eigen';e.dataset.i='eigen';
   const nEigen=Object.keys(bon).filter(k=>k[0]==='a').reduce((s,k)=>s+bon[k],0);
   e.innerHTML=`<span class="ico" aria-hidden="true">✏️</span><span class="naam">Aangepast</span><span class="prijs">Zelf prijs</span>${nEigen?`<span class="aantal">${nEigen}×</span>`:''}`;
   e.setAttribute('aria-label','Aangepast: zelf een prijs ingeven');
   e.onclick=()=>{tril();openEigen()};
-  g.appendChild(e);
+  return e;
 }
 /* Zelf prijs ingeven: cijferklavier met komma, max 2 cijfers na de komma */
 let eInvoer='';
@@ -914,7 +932,7 @@ function tekenInstel(){
       const r=new FileReader();r.onload=ev=>{verklein(ev.target.result,u=>{k.img=u;bewaar();tekenInstel()})};r.readAsDataURL(f)};
     const g=d.querySelector('.geenimg');if(g)g.onclick=()=>{k.img='';bewaar();tekenInstel()};
     const w=d.querySelector('.weg');let zeker=false;
-    w.onclick=()=>{if(!zeker){zeker=true;w.textContent='Zeker? Tik nog eens';return}knoppen.splice(i,1);bon={};historie=[];bewaar();tekenInstel()};
+    w.onclick=()=>{if(!zeker){zeker=true;w.textContent='Zeker? Tik nog eens';return}knoppen.splice(i,1);if(i<eigenPos){eigenPos--;schrijf('kassa-eigenpos',eigenPos)}bon={};historie=[];bewaar();tekenInstel()};
     c.appendChild(d);
   });
 }
