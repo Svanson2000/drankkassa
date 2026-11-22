@@ -185,6 +185,40 @@ aside .bonkop h2{margin:0}
 .acties .weg{color:var(--danger)}
 .acties img{width:40px;height:40px;object-fit:contain;border-radius:6px}
 .plus{border:2px dashed var(--line);background:transparent;border-radius:12px;padding:16px;font-weight:600}
+/* Dagpromo's */
+.promobalk,.promoeinde{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;padding-block:8px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.promobalk{background:linear-gradient(90deg,#6d28d9,#db2777);color:#fff}
+.promobalk .lbl{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#fff3;border-radius:999px;padding:2px 10px}
+.promobalk b{font-family:var(--display);font-size:28px;line-height:1.1;letter-spacing:.02em}
+.promobalk .tijd{font-size:14px;opacity:.9;margin-left:auto}
+.promoeinde{background:#ffd43b;color:#3a2a00;border-bottom:3px solid #c99700;font-size:17px;font-weight:700}
+.promoeinde .tijd{font-size:13px;font-weight:600;margin-left:auto}
+.key.promo{border:2px solid #db2777;background:linear-gradient(160deg,#fdf2f8,#f5f3ff);position:relative}
+.key.promo .prijs{color:#be185d}
+.key.promo .naam{color:#4c1d95;font-weight:600}
+.key.promo .tag{position:absolute;top:6px;left:6px;font-size:11px;font-weight:700;letter-spacing:.06em;background:#db2777;color:#fff;border-radius:999px;padding:1px 8px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .key.promo{background:linear-gradient(160deg,#3b0d2a,#21163f)}:root:not([data-theme="light"]) .key.promo .naam{color:#e9d5ff}:root:not([data-theme="light"]) .key.promo .prijs{color:#f9a8d4}}
+.promos{display:flex;flex-direction:column;gap:0}
+.prij{display:grid;grid-template-columns:104px 28px minmax(140px,1fr) 100px 100px auto 76px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.prij:last-child{border-bottom:0}
+.prij .dagnaam{font-weight:600}
+.prij input[type=text],.prij input[type=time],.prij input[type=number]{width:100%;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+.prij input:disabled{opacity:.45}
+.prij .chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);white-space:nowrap}
+.prij .chk input{width:20px;height:20px;accent-color:var(--accent)}
+.prij .ml{display:none}
+.prij.uit .veld{opacity:.4}
+.prij.nu{background:var(--chip);border-radius:8px;padding-inline:8px;margin-inline:-8px}
+.promokop{display:grid;grid-template-columns:104px 28px minmax(140px,1fr) 100px 100px auto 76px;gap:8px;font-size:12px;color:var(--muted);font-weight:600}
+@media (max-width:760px){
+  .promokop{display:none}
+  .prij{grid-template-columns:1fr 1fr;row-gap:6px}
+  .prij .dagnaam{grid-column:1}.prij .aanuit{grid-column:2;justify-self:end}
+  .prij .pnaam{grid-column:1/-1}
+  .prij .ml{display:inline}
+  .prij .veld[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+}
 @media (max-width:760px){
   main{flex-direction:column}
   #grid{grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px;padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -217,6 +251,8 @@ aside .bonkop h2{margin:0}
     <button id="tabInstel" aria-pressed="false">Admin</button>
   </div>
 </header>
+<div id="promoEinde" class="promoeinde" hidden role="alert"></div>
+<div id="promoBalk" class="promobalk" hidden aria-live="polite"></div>
 
 <main id="kassa">
   <div id="grid"></div>
@@ -271,6 +307,15 @@ aside .bonkop h2{margin:0}
         <button class="reset" id="dagReset">Dag op nul</button>
         <button id="pinWijzig">Pincode wijzigen</button>
       </div>
+    </section>
+
+    <section class="blok" aria-labelledby="kopPromo">
+      <div>
+        <h2 class="blokkop" id="kopPromo">Dagpromo's</h2>
+        <p class="hint">Eén promo per dag. Ze verschijnt vanzelf op de kassa vanaf de starttijd. Een promo die over middernacht loopt, hoort bij de dag waarop ze start. Vul je een promoprijs in, dan komt er tijdens de promo ook een promoknop bij. Laat je de prijs leeg, dan wordt de promo alleen getoond.</p>
+      </div>
+      <div class="promokop" aria-hidden="true"><span>Dag</span><span>Aan</span><span>Promo</span><span>Van</span><span>Tot</span><span></span><span>Prijs (€)</span></div>
+      <div class="promos" id="promos"></div>
     </section>
 
     <h2 class="blokkop" style="margin-top:8px">Prijsknoppen</h2>
@@ -447,6 +492,96 @@ let bon={}; // index -> aantal
 let historie=[]; // volgorde van getikte knoppen, voor 'Laatste tik terug'
 let gegeven=[]; // briefjes/munten die de klant gaf, in cent
 let kaartModus=false; // true = klant betaalt met Bancontact
+/* ===== Dagpromo's =====
+   Eén promo per weekdag (0 = maandag). Een promo die over middernacht loopt, hoort bij de dag waarop ze start.
+   "Tot sluiting" (geen eindtijd) loopt tot 06:00 de volgende ochtend en geeft geen eindwaarschuwing. */
+const DAGEN=['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+const SLUITING=6*60, WAARSCHUW_MIN=10;
+const STANDAARD_PROMOS=[
+  {aan:true,naam:'Double Trouble',van:'22:00',tot:'00:00',prijs:null},
+  {aan:true,naam:'Double Trouble',van:'22:00',tot:'00:00',prijs:null},
+  {aan:true,naam:'Red Bull Vodka',van:'22:00',tot:'',prijs:null},
+  {aan:true,naam:'Shots 3+1',van:'21:00',tot:'01:00',prijs:null},
+  {aan:true,naam:'Double Trouble',van:'22:00',tot:'00:00',prijs:null},
+  {aan:false,naam:'',van:'22:00',tot:'00:00',prijs:null},
+  {aan:false,naam:'',van:'22:00',tot:'00:00',prijs:null}];
+let promos=lees('kassa-promos',STANDAARD_PROMOS);
+if(!Array.isArray(promos)||promos.length!==7)promos=STANDAARD_PROMOS;
+const nu=()=>window.testNu?new Date(window.testNu):new Date(); // testNu: alleen om te testen
+const minuten=t=>{const m=/^(\d{1,2}):(\d{2})/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
+const uur=d=>d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
+/* Begin en einde van de promo die op kalenderdag `dag` start */
+function venster(dag){
+  const d=(dag.getDay()+6)%7,p=promos[d];
+  if(!p||!p.aan||!(p.naam||'').trim())return null;
+  const s=minuten(p.van);if(s==null)return null;
+  let e=minuten(p.tot);const totSluiting=e==null;
+  if(totSluiting)e=1440+SLUITING;else if(e<=s)e+=1440;
+  const Y=dag.getFullYear(),M=dag.getMonth(),D=dag.getDate();
+  return {p,d,totSluiting,start:new Date(Y,M,D,0,s),einde:new Date(Y,M,D,0,e)};
+}
+function promoStatus(){
+  const t=nu(),r={actief:null,afgelopen:null};
+  for(const terug of [0,1]){
+    const v=venster(new Date(t.getFullYear(),t.getMonth(),t.getDate()-terug));if(!v)continue;
+    if(t>=v.start&&t<v.einde&&!r.actief)r.actief=v;
+    const tot=new Date(v.einde.getTime()+WAARSCHUW_MIN*60000);
+    if(!v.totSluiting&&t>=v.einde&&t<tot&&!r.afgelopen)r.afgelopen={...v,tot};
+  }
+  return r;
+}
+let promoVorige='';
+function controleerPromo(){
+  const st=promoStatus(),t=nu();
+  const balk=$('promoBalk'),einde=$('promoEinde');
+  if(st.actief){
+    const v=st.actief,rest=Math.max(0,Math.round((v.einde-t)/60000));
+    const nog=rest>=60?`${Math.floor(rest/60)} u ${rest%60} min`:`${rest} min`;
+    balk.innerHTML=`<span class="lbl">Promo van vandaag</span><b></b><span class="tijd">${v.totSluiting?`van ${uur(v.start)} tot sluiting`:`tot ${uur(v.einde)} · nog ${nog}`}</span>`;
+    balk.querySelector('b').textContent=v.p.naam+(v.p.prijs>0?' · '+eur(v.p.prijs):'');
+    balk.hidden=false;
+  }else balk.hidden=true;
+  if(st.afgelopen){
+    const v=st.afgelopen;
+    einde.innerHTML=`<span>⚠️ Let op: de promo van vandaag (<span class="pn"></span>) is afgelopen om ${uur(v.einde)}.</span><span class="tijd">Gewone prijzen</span>`;
+    einde.querySelector('.pn').textContent=v.p.naam;
+    einde.hidden=false;
+  }else einde.hidden=true;
+  /* Promoknop verschijnt of verdwijnt: raster opnieuw tekenen */
+  const sleutel=st.actief?st.actief.d+'|'+st.actief.start.getTime()+'|'+st.actief.p.naam+'|'+st.actief.p.prijs:'';
+  if(sleutel!==promoVorige){promoVorige=sleutel;if(!$('kassa').hidden)tekenGrid()}
+}
+setInterval(controleerPromo,15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)controleerPromo()});
+
+/* Admin: promo per dag instellen; de kassa gebruikt de nieuwe uren meteen */
+function bewaarPromos(){schrijf('kassa-promos',promos);controleerPromo()}
+function tekenPromos(){
+  const c=$('promos');c.innerHTML='';
+  const vandaag=(nu().getDay()+6)%7;
+  promos.forEach((p,d)=>{
+    const r=document.createElement('div');r.className='prij'+(p.aan?'':' uit')+(d===vandaag?' nu':'');
+    r.innerHTML=`<span class="dagnaam">${DAGEN[d]}${d===vandaag?' <small>(vandaag)</small>':''}</span>
+      <label class="chk aanuit"><input type="checkbox" class="aan" aria-label="Promo aan op ${DAGEN[d]}"><span class="ml">Promo aan</span></label>
+      <input type="text" class="veld pnaam" placeholder="bv. gesloten, geen promo" aria-label="Promo op ${DAGEN[d]}">
+      <label class="veld" data-l="Van"><input type="time" class="van" aria-label="Van (${DAGEN[d]})"></label>
+      <label class="veld" data-l="Tot"><input type="time" class="tot" aria-label="Tot (${DAGEN[d]})"></label>
+      <label class="chk veld"><input type="checkbox" class="sluit"> tot sluiting</label>
+      <label class="veld" data-l="Promoprijs (€)"><input type="number" class="prijs" step="0.01" min="0" inputmode="decimal" placeholder="–" aria-label="Promoprijs (${DAGEN[d]})"></label>`;
+    const q=s=>r.querySelector(s);
+    q('.aan').checked=!!p.aan;q('.pnaam').value=p.naam||'';q('.van').value=p.van||'';
+    q('.sluit').checked=!p.tot;q('.tot').value=p.tot||'';q('.tot').disabled=!p.tot;
+    q('.prijs').value=p.prijs>0?p.prijs:'';
+    q('.aan').onchange=()=>{p.aan=q('.aan').checked;r.classList.toggle('uit',!p.aan);bewaarPromos()};
+    q('.pnaam').oninput=()=>{p.naam=q('.pnaam').value;if(p.naam.trim()&&!p.aan){p.aan=true;q('.aan').checked=true;r.classList.remove('uit')}bewaarPromos()};
+    q('.van').onchange=()=>{p.van=q('.van').value;bewaarPromos()};
+    q('.tot').onchange=()=>{p.tot=q('.tot').value;if(!p.tot){q('.sluit').checked=true;q('.tot').disabled=true}bewaarPromos()};
+    q('.sluit').onchange=()=>{const s=q('.sluit').checked;q('.tot').disabled=s;
+      if(s){p.tot='';q('.tot').value=''}else{p.tot=q('.tot').value||'00:00';q('.tot').value=p.tot}bewaarPromos()};
+    q('.prijs').oninput=()=>{const v=parseFloat(String(q('.prijs').value).replace(',','.'));p.prijs=v>0?v:null;bewaarPromos()};
+    c.appendChild(r);
+  });
+}
 function tekenGegeven(){
   const d=$('gegeven');
   if(!gegeven.length){d.innerHTML='';return}
@@ -460,26 +595,39 @@ const tril=()=>{try{navigator.vibrate&&navigator.vibrate(15)}catch(e){}};
 const eur=n=>'€'+(Math.round(n*100)/100).toFixed(2).replace('.',',');
 const $=id=>document.getElementById(id);
 
-function totaal(){return Object.entries(bon).reduce((s,[i,n])=>s+(knoppen[i]?knoppen[i].prijs*n:0),0)}
+/* Een regel op de bon is een gewone knop (index) of de promo ('p') */
+let promoArt=null;
+const art=i=>i==='p'?promoArt:knoppen[i];
+function totaal(){return Object.entries(bon).reduce((s,[i,n])=>s+(art(i)?art(i).prijs*n:0),0)}
 
 function tekenGrid(){
   const g=$('grid');g.innerHTML='';
+  /* Promoknop vooraan, alleen tijdens de promo-uren en als er een promoprijs is */
+  const st=promoStatus();
+  if(st.actief&&st.actief.p.prijs>0){
+    const p=st.actief.p,b=document.createElement('button');b.className='key promo';b.dataset.i='p';
+    b.innerHTML=`<span class="tag">PROMO</span><span class="ico" aria-hidden="true">🎉</span><span class="naam"></span><span class="prijs">${eur(p.prijs)}</span>${bon.p?`<span class="aantal">${bon.p}×</span>`:''}`;
+    b.querySelector('.naam').textContent=p.naam;
+    b.setAttribute('aria-label',`Promo ${p.naam} ${eur(p.prijs)} toevoegen`);
+    b.onclick=()=>{promoArt={naam:'Promo: '+p.naam,prijs:p.prijs,ico:'🎉',img:''};bon.p=(bon.p||0)+1;historie.push('p');tril();teken();const nk=g.querySelector('[data-i="p"]');if(nk)nk.classList.add('tik')};
+    g.appendChild(b);
+  }
   knoppen.forEach((k,i)=>{
-    const b=document.createElement('button');b.className='key';
+    const b=document.createElement('button');b.className='key';b.dataset.i=i;
     const beeld=k.img?`<img src="${k.img}" alt="">`:icoHtml(k.ico,'ico');
     b.innerHTML=`${beeld}<span class="naam"></span><span class="prijs">${eur(k.prijs)}</span>${bon[i]?`<span class="aantal">${bon[i]}×</span>`:''}`;
     b.querySelector('.naam').textContent=k.naam||'Drankje';
     b.setAttribute('aria-label',`${k.naam||'Drankje'} ${eur(k.prijs)} toevoegen`);
-    b.onclick=()=>{bon[i]=(bon[i]||0)+1;historie.push(i);tril();teken();const nk=$('grid').children[i];if(nk)nk.classList.add('tik')};
+    b.onclick=()=>{bon[i]=(bon[i]||0)+1;historie.push(i);tril();teken();const nk=$('grid').querySelector(`[data-i="${i}"]`);if(nk)nk.classList.add('tik')};
     g.appendChild(b);
   });
 }
 function tekenBon(){
   const l=$('lijst');l.innerHTML='';
-  const items=Object.entries(bon).filter(([i,n])=>n>0&&knoppen[i]);
+  const items=Object.entries(bon).filter(([i,n])=>n>0&&art(i));
   if(!items.length){l.innerHTML='<div class="leeg">Tik op een prijs om te beginnen.</div>'}
   items.forEach(([i,n])=>{
-    const k=knoppen[i];const r=document.createElement('div');r.className='regel';
+    const k=art(i);const r=document.createElement('div');r.className='regel';
     r.innerHTML=`<span class="n">${n}×</span><span class="t"></span><span>${eur(k.prijs*n)}</span><button class="min" aria-label="Eén minder">−</button>`;
     r.querySelector('.t').textContent=`${k.img||String(k.ico).startsWith('svg:')?'':k.ico+' '}${k.naam||'Drankje'}`;
     r.querySelector('.min').onclick=()=>{bon[i]--;if(bon[i]<=0)delete bon[i];teken()};
@@ -625,7 +773,7 @@ $('nieuw').onclick=()=>{
   if(t>0){
     dag.bedrag+=t;dag.klanten++;if(kaartModus)dag.kaart=(dag.kaart||0)+t;
     Object.entries(bon).forEach(([i,n])=>{
-      const k=knoppen[i];if(!k||n<=0)return;
+      const k=art(i);if(!k||n<=0)return;
       const sleutel=(k.naam||'Drankje')+'|'+k.prijs;
       if(!dag.items[sleutel])dag.items[sleutel]={naam:k.naam||'Drankje',prijs:k.prijs,aantal:0};
       dag.items[sleutel].aantal+=n;
@@ -667,7 +815,7 @@ $('dagReset').onclick=()=>{
 
 function bewaar(){schrijf('kassa-knoppen',knoppen)}
 function tekenInstel(){
-  tekenDag();
+  tekenDag();tekenPromos();
   const c=$('kaarten');c.innerHTML='';
   knoppen.forEach((k,i)=>{
     const d=document.createElement('div');d.className='kaart';
@@ -755,6 +903,7 @@ function toon(v){
 }
 $('tabKassa').onclick=()=>toon('kassa');$('tabInstel').onclick=()=>toon('instel');
 toon('kassa');
+controleerPromo();
 
 /* App: werkt offline na de eerste keer openen (service worker) en vraagt het toestel de gegevens niet op te ruimen */
 if('serviceWorker' in navigator)addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});
