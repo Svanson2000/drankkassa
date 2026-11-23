@@ -136,6 +136,21 @@ aside h2,.blokkop{font-family:var(--display);font-size:20px;margin:0 0 8px;lette
 /* Korte statusbalk boven de afrekenknop (alle schermen) */
 .mini{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;margin-bottom:6px;border-radius:10px;padding:8px 12px;font-size:16px;font-weight:600;border:2px solid transparent;text-align:left;font-variant-numeric:tabular-nums}
 .mini b{font-family:var(--display);font-size:24px}
+/* Jingle Ball Jackpot Weeks: kerstballen bij de afrekening */
+.jackpot{display:flex;align-items:center;gap:10px;margin-top:8px;border-radius:12px;padding:8px 12px;background:linear-gradient(90deg,#b91c1c,#15803d);color:#fff;box-shadow:0 2px 8px #0002}
+.jackpot .bal{flex:none;width:40px;height:40px}
+.jackpot .jt{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.jackpot .jt small{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.9}
+.jackpot .jt span{font-size:15px;font-weight:600}
+.jackpot .jn{font-family:var(--display);font-size:44px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.jackpot.nul{background:var(--chip);color:var(--fg);box-shadow:none}
+.jackpot.nul .jn{display:none}
+.pjackpot{margin-top:4px}
+.jackrij{display:grid;grid-template-columns:110px 1fr;gap:10px 14px;align-items:center}
+.jackrij label{font-size:13px;color:var(--muted)}
+.jackrij input[type=date],.jackrij input[type=number]{width:100%;max-width:220px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+.jackrij .chk{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--fg)}
+.jackrij .chk input{width:22px;height:22px;accent-color:var(--accent)}
 .mini small{font-size:12px;font-weight:600;opacity:.8;white-space:nowrap}
 .mini.ok,.mini.gepast{background:var(--ok-bg);color:var(--ok-fg);border-color:var(--ok-line)}
 .mini.neg{background:var(--neg-bg);color:var(--neg-fg);border-color:var(--neg-line)}
@@ -305,6 +320,7 @@ aside .bonkop h2{margin:0}
     <input id="betaald" type="number" inputmode="decimal" step="0.01" placeholder="Of typ het bedrag (€)">
     <div id="wissel" class="wissel" aria-live="polite"></div>
     <div class="voet">
+      <div id="jackpot" class="jackpot" hidden aria-live="polite"></div>
       <button class="mini" id="mini" hidden></button>
       <button class="nieuw" id="nieuw">Afgerekend, volgende klant</button>
     </div>
@@ -329,6 +345,7 @@ aside .bonkop h2{margin:0}
     <div class="lbl" id="pLbl">Geef terug</div>
     <div class="bedrag" id="pBedrag"></div>
     <div id="pGeld"></div>
+    <div id="pJackpot" class="jackpot pjackpot" hidden></div>
     <div class="pknoppen">
       <button class="nieuw" id="pKlaar">Teruggegeven, volgende klant</button>
       <button class="terug" id="pTerug">Terug, ik moet nog iets aanpassen</button>
@@ -350,6 +367,7 @@ aside .bonkop h2{margin:0}
         <div><span>Drankjes verkocht</span><b id="sStuks"></b></div>
         <div><span>Cash</span><b id="sCash"></b></div>
         <div><span>Bancontact</span><b id="sKaart"></b></div>
+        <div id="sBallenVak" hidden><span>🎄 Kerstballen getrokken</span><b id="sBallen"></b></div>
       </div>
       <table class="tabel">
         <thead><tr><th>Drankje</th><th>Prijs</th><th>Aantal</th><th>Bedrag</th></tr></thead>
@@ -371,6 +389,20 @@ aside .bonkop h2{margin:0}
         <button data-thema="dark"><span class="staal" style="background:#1b221e"></span>Donker</button>
         <button data-thema="auto"><span class="staal" style="background:linear-gradient(135deg,#ffffff 50%,#1b221e 50%)"></span>Automatisch</button>
       </div>
+    </section>
+
+    <section class="blok" aria-labelledby="kopJackpot">
+      <div>
+        <h2 class="blokkop" id="kopJackpot">Actie: Jingle Ball Jackpot Weeks</h2>
+        <p class="hint">Tijdens de actie mag de klant per gespendeerd bedrag één kerstbal kiezen. Bij het afrekenen staat automatisch hoeveel kerstballen er getrokken mogen worden. Een nacht na middernacht telt nog bij de dag ervoor (tot 06:00).</p>
+      </div>
+      <div class="jackrij">
+        <label for="jAan">Actie</label><label class="chk"><input type="checkbox" id="jAan"> Actie aan</label>
+        <label for="jVan">Van</label><input type="date" id="jVan">
+        <label for="jTot">Tot en met</label><input type="date" id="jTot">
+        <label for="jPer">Per (€)</label><input type="number" id="jPer" min="1" step="0.01" inputmode="decimal">
+      </div>
+      <p class="hint" id="jStatus"></p>
     </section>
 
     <section class="blok" aria-labelledby="kopPromo">
@@ -612,6 +644,27 @@ function promoStatus(){
   }
   return r;
 }
+/* ===== Jingle Ball Jackpot Weeks =====
+   Per gespendeerd bedrag (standaard €20) mag de klant één kerstbal kiezen, binnen de actieperiode.
+   Een nacht na middernacht telt bij de dag ervoor (wisseling om 06:00), net zoals de dagpromo's. */
+const JACKPOT_STANDAARD={aan:true,van:'2026-12-01',tot:'2026-12-20',per:20};
+let jackpot=Object.assign({},JACKPOT_STANDAARD,lees('kassa-jackpot',{}));
+function werkdag(){const d=new Date(nu().getTime()-6*3600e3);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function jackpotActief(){if(!jackpot.aan||!jackpot.van||!jackpot.tot||!(jackpot.per>0))return false;const w=werkdag();return w>=jackpot.van&&w<=jackpot.tot}
+function kerstballen(bedrag){return jackpotActief()?Math.floor(Math.round(bedrag*100)/Math.round(jackpot.per*100)):0}
+const BAL='<svg class="bal" viewBox="0 0 40 40" aria-hidden="true"><defs><radialGradient id="kb" cx=".35" cy=".35" r=".75"><stop offset="0" stop-color="#fff6c2"/><stop offset=".25" stop-color="#facc15"/><stop offset="1" stop-color="#a16207"/></radialGradient></defs><rect x="16" y="3" width="8" height="6" rx="1.5" fill="#d4d4d8" stroke="#71717a"/><path d="M20 3c-3-3 3-3 0 0" fill="none" stroke="#71717a" stroke-width="1.5"/><circle cx="20" cy="23" r="15" fill="url(#kb)"/><path d="M7 21q13 6 26 0" stroke="#b91c1c" stroke-width="2.5" fill="none"/><path d="M8 27q12 5 24 0" stroke="#fff" stroke-width="1.2" fill="none" opacity=".7"/><ellipse cx="14" cy="16" rx="4" ry="2.5" fill="#fff" opacity=".6" transform="rotate(-30 14 16)"/></svg>';
+function jackpotHtml(t){
+  const n=kerstballen(t),per=Math.round(jackpot.per*100),rest=per-Math.round(t*100)%per;
+  const tekst=n?`${n===1?'kerstbal mag':'kerstballen mogen'} getrokken worden`:`Nog ${eur(rest/100)} tot een kerstbal`;
+  const extra=n&&rest<per?`<span style="font-size:12px;opacity:.85">Nog ${eur(rest/100)} voor de volgende</span>`:'';
+  return {n,html:`${BAL}<b class="jn">${n}</b><div class="jt"><small>Jingle Ball Jackpot</small><span>${tekst}</span>${extra}</div>`};
+}
+function tekenJackpot(){
+  const j=$('jackpot'),t=totaal();
+  if(!jackpotActief()||t<=0){j.hidden=true;return}
+  const r=jackpotHtml(t);j.innerHTML=r.html;j.classList.toggle('nul',!r.n);j.hidden=false;
+  j.setAttribute('aria-label',r.n?`Jingle Ball Jackpot: ${r.n} kerstbal${r.n===1?'':'len'} mag${r.n===1?'':'en'} getrokken worden`:'Jingle Ball Jackpot');
+}
 let promoVorige='';
 function controleerPromo(){
   const st=promoStatus(),t=nu();
@@ -632,6 +685,7 @@ function controleerPromo(){
   /* Promoknop verschijnt of verdwijnt: raster opnieuw tekenen */
   const sleutel=st.actief?st.actief.d+'|'+st.actief.start.getTime()+'|'+st.actief.p.naam+'|'+st.actief.p.prijs:'';
   if(sleutel!==promoVorige){promoVorige=sleutel;if(!$('kassa').hidden)tekenGrid()}
+  if(!$('kassa').hidden)tekenJackpot();
 }
 setInterval(controleerPromo,15000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)controleerPromo()});
@@ -859,7 +913,7 @@ function wisselVlak(){
 /* zichtbaar=true alleen bij Gepast en Bancontact: dan mag het vlak in beeld schuiven.
    Bij briefjes/munten blijft het scherm stil; de korte balk boven de afrekenknop toont het resultaat. */
 function wissel(zichtbaar){
-  wisselVlak();
+  wisselVlak();tekenJackpot();
   const w=$('wissel'),m=$('mini'),t=totaal();
   const soort=['ok','neg','gepast','kaart'].find(c=>w.classList.contains(c));
   if(!soort){m.hidden=true}else{
@@ -884,6 +938,7 @@ function wisselgeld(){
 function planPopup(ms){clearTimeout(popupTimer);popupTimer=setTimeout(()=>{const r=wisselgeld();if(r>0)toonPopup(r)},ms)}
 function toonPopup(r){
   $('pBedrag').textContent=eur(r/100);$('pGeld').innerHTML=geldHtml(r);
+  {const pj=$('pJackpot'),r=jackpotHtml(totaal());pj.hidden=!(jackpotActief()&&r.n);if(!pj.hidden)pj.innerHTML=r.html}
   const st=aantalStuks();$('pAantal').innerHTML=`<b>${st}</b> ${st===1?'drankje':'drankjes'}<small>totaal ${eur(totaal())}</small>`;
   $('popup').hidden=false;$('pKlaar').focus();
 }
@@ -900,6 +955,7 @@ $('nieuw').onclick=()=>{
   const t=totaal();
   if(t>0){
     dag.bedrag+=t;dag.klanten++;if(kaartModus)dag.kaart=(dag.kaart||0)+t;
+    dag.ballen=(dag.ballen||0)+kerstballen(t);
     Object.entries(bon).forEach(([i,n])=>{
       const k=art(i);if(!k||n<=0)return;
       const sleutel=(k.naam||'Drankje')+'|'+k.prijs;
@@ -926,6 +982,7 @@ function tekenDag(){
   $('sKlanten').textContent=dag.klanten;
   $('sGem').textContent=dag.klanten?eur(dag.bedrag/dag.klanten):'–';
   $('sStuks').textContent=stuks;
+  $('sBallenVak').hidden=!(dag.ballen||jackpotActief());$('sBallen').textContent=dag.ballen||0;
   $('sKaart').textContent=eur(dag.kaart||0);
   $('sCash').textContent=eur(dag.bedrag-(dag.kaart||0));
   const tb=$('sRijen');tb.innerHTML='';
@@ -942,6 +999,18 @@ $('dagReset').onclick=()=>{
   dag=legeDag();schrijf('kassa-dag',dag);resetKlik=0;$('dagReset').textContent='Dag op nul';tekenDag()};
 
 function bewaar(){schrijf('kassa-knoppen',knoppen)}
+/* Admin: Jingle Ball Jackpot Weeks instellen */
+function tekenJackpotAdmin(){
+  $('jAan').checked=!!jackpot.aan;$('jVan').value=jackpot.van;$('jTot').value=jackpot.tot;$('jPer').value=jackpot.per;
+  const a=jackpotActief(),f=d=>new Date(d+'T12:00').toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'});
+  $('jStatus').textContent=!jackpot.aan?'De actie staat uit.':!(jackpot.van&&jackpot.tot)?'Vul een begin- en einddatum in.'
+    :(a?'✓ De actie loopt nu: ':'De actie loopt ')+`van ${f(jackpot.van)} tot en met ${f(jackpot.tot)}, 1 kerstbal per ${eur(jackpot.per)}.`;
+}
+function bewaarJackpot(){schrijf('kassa-jackpot',jackpot);tekenJackpotAdmin();tekenJackpot()}
+$('jAan').onchange=()=>{jackpot.aan=$('jAan').checked;bewaarJackpot()};
+$('jVan').onchange=()=>{jackpot.van=$('jVan').value;bewaarJackpot()};
+$('jTot').onchange=()=>{jackpot.tot=$('jTot').value;bewaarJackpot()};
+$('jPer').oninput=()=>{const v=parseFloat(String($('jPer').value).replace(',','.'));if(v>=1){jackpot.per=Math.round(v*100)/100;schrijf('kassa-jackpot',jackpot);tekenJackpot();tekenJackpotAdmin()}};
 /* Achtergrond: wit, donker of automatisch (volgt het toestel) */
 function zetThema(t){
   if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;else{delete document.documentElement.dataset.theme;t='auto'}
@@ -963,7 +1032,7 @@ try{donkerMQ.addEventListener('change',()=>zetThema(lees('kassa-thema','auto')))
 document.querySelectorAll('#themaKeuze button').forEach(b=>b.onclick=()=>{tril();schrijf('kassa-thema',b.dataset.thema);zetThema(b.dataset.thema)});
 zetThema(lees('kassa-thema','auto'));
 function tekenInstel(){
-  tekenDag();tekenPromos();
+  tekenDag();tekenPromos();tekenJackpotAdmin();
   const c=$('kaarten');c.innerHTML='';
   knoppen.forEach((k,i)=>{
     const d=document.createElement('div');d.className='kaart';
