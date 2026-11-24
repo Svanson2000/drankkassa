@@ -148,7 +148,7 @@ aside h2,.blokkop{font-family:var(--display);font-size:20px;margin:0 0 8px;lette
 .pjackpot{margin-top:4px}
 .jackrij{display:grid;grid-template-columns:110px 1fr;gap:10px 14px;align-items:center}
 .jackrij label{font-size:13px;color:var(--muted)}
-.jackrij input[type=date],.jackrij input[type=number]{width:100%;max-width:220px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+.jackrij input[type=date],.jackrij input[type=number],.jackrij input[type=text]{width:100%;max-width:220px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 .jackrij .chk{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--fg)}
 .jackrij .chk input{width:22px;height:22px;accent-color:var(--accent)}
 .mini small{font-size:12px;font-weight:600;opacity:.8;white-space:nowrap}
@@ -367,7 +367,7 @@ aside .bonkop h2{margin:0}
         <div><span>Drankjes verkocht</span><b id="sStuks"></b></div>
         <div><span>Cash</span><b id="sCash"></b></div>
         <div><span>Bancontact</span><b id="sKaart"></b></div>
-        <div id="sBallenVak" hidden><span>🎄 Kerstballen getrokken</span><b id="sBallen"></b></div>
+        <div id="sBallenVak" hidden><span id="sBallenLbl">🎄 Kerstballen getrokken</span><b id="sBallen"></b></div>
       </div>
       <table class="tabel">
         <thead><tr><th>Drankje</th><th>Prijs</th><th>Aantal</th><th>Bedrag</th></tr></thead>
@@ -393,11 +393,14 @@ aside .bonkop h2{margin:0}
 
     <section class="blok" aria-labelledby="kopJackpot">
       <div>
-        <h2 class="blokkop" id="kopJackpot">Actie: Jingle Ball Jackpot Weeks</h2>
-        <p class="hint">Tijdens de actie mag de klant per gespendeerd bedrag één kerstbal kiezen. Bij het afrekenen staat automatisch hoeveel kerstballen er getrokken mogen worden. Een nacht na middernacht telt nog bij de dag ervoor (tot 06:00).</p>
+        <h2 class="blokkop" id="kopJackpot">Actie</h2>
+        <p class="hint">Tijdens de actie krijgt de klant per gespendeerd bedrag één keuze (bv. een kerstbal). Bij het afrekenen staat automatisch hoeveel er getrokken mogen worden. Naam, periode en bedrag pas je hier aan. Een nacht na middernacht telt nog bij de dag ervoor (tot 06:00).</p>
       </div>
       <div class="jackrij">
         <label for="jAan">Actie</label><label class="chk"><input type="checkbox" id="jAan"> Actie aan</label>
+        <label for="jNaam">Naam actie</label><input type="text" id="jNaam" maxlength="40">
+        <label for="jEen">Klant krijgt (1)</label><input type="text" id="jEen" maxlength="30" placeholder="bv. kerstbal">
+        <label for="jMeer">Meervoud</label><input type="text" id="jMeer" maxlength="30" placeholder="bv. kerstballen">
         <label for="jVan">Van</label><input type="date" id="jVan">
         <label for="jTot">Tot en met</label><input type="date" id="jTot">
         <label for="jPer">Per (€)</label><input type="number" id="jPer" min="1" step="0.01" inputmode="decimal">
@@ -614,13 +617,18 @@ const SLUITING=6*60, WAARSCHUW_MIN=10;
 const STANDAARD_PROMOS=[
   {aan:true,naam:'Double Trouble',van:'22:00',tot:'00:00',prijs:null},
   {aan:true,naam:'Double Trouble',van:'22:00',tot:'00:00',prijs:null},
-  {aan:true,naam:'Red Bull Vodka',van:'22:00',tot:'',prijs:null},
+  {aan:true,naam:'Red Bull Vodka',van:'22:00',tot:'',prijs:7.5},
   {aan:true,naam:'Shots 3+1',van:'21:00',tot:'01:00',prijs:null},
   {aan:true,naam:'Double Trouble',van:'22:00',tot:'00:00',prijs:null},
   {aan:false,naam:'',van:'22:00',tot:'00:00',prijs:null},
   {aan:false,naam:'',van:'22:00',tot:'00:00',prijs:null}];
 let promos=lees('kassa-promos',STANDAARD_PROMOS);
 if(!Array.isArray(promos)||promos.length!==7)promos=STANDAARD_PROMOS;
+/* Eenmalig: woensdagpromo Red Bull Vodka krijgt een promoknop van €7,50 */
+if(!lees('kassa-promo-redbull-v1',false)){
+  const w=promos[2];if(w&&/red\s*bull/i.test(w.naam||'')&&!(w.prijs>0))w.prijs=7.5;
+  schrijf('kassa-promos',promos);schrijf('kassa-promo-redbull-v1',true);
+}
 const nu=()=>window.testNu?new Date(window.testNu):new Date(); // testNu: alleen om te testen
 const minuten=t=>{const m=/^(\d{1,2}):(\d{2})/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const uur=d=>d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
@@ -647,23 +655,25 @@ function promoStatus(){
 /* ===== Jingle Ball Jackpot Weeks =====
    Per gespendeerd bedrag (standaard €20) mag de klant één kerstbal kiezen, binnen de actieperiode.
    Een nacht na middernacht telt bij de dag ervoor (wisseling om 06:00), net zoals de dagpromo's. */
-const JACKPOT_STANDAARD={aan:true,van:'2026-12-01',tot:'2026-12-20',per:20};
+const JACKPOT_STANDAARD={aan:true,naam:'Jingle Ball Jackpot',een:'kerstbal',meer:'kerstballen',van:'2026-12-01',tot:'2026-12-20',per:20};
 let jackpot=Object.assign({},JACKPOT_STANDAARD,lees('kassa-jackpot',{}));
 function werkdag(){const d=new Date(nu().getTime()-6*3600e3);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function jackpotActief(){if(!jackpot.aan||!jackpot.van||!jackpot.tot||!(jackpot.per>0))return false;const w=werkdag();return w>=jackpot.van&&w<=jackpot.tot}
 function kerstballen(bedrag){return jackpotActief()?Math.floor(Math.round(bedrag*100)/Math.round(jackpot.per*100)):0}
 const BAL='<svg class="bal" viewBox="0 0 40 40" aria-hidden="true"><defs><radialGradient id="kb" cx=".35" cy=".35" r=".75"><stop offset="0" stop-color="#fff6c2"/><stop offset=".25" stop-color="#facc15"/><stop offset="1" stop-color="#a16207"/></radialGradient></defs><rect x="16" y="3" width="8" height="6" rx="1.5" fill="#d4d4d8" stroke="#71717a"/><path d="M20 3c-3-3 3-3 0 0" fill="none" stroke="#71717a" stroke-width="1.5"/><circle cx="20" cy="23" r="15" fill="url(#kb)"/><path d="M7 21q13 6 26 0" stroke="#b91c1c" stroke-width="2.5" fill="none"/><path d="M8 27q12 5 24 0" stroke="#fff" stroke-width="1.2" fill="none" opacity=".7"/><ellipse cx="14" cy="16" rx="4" ry="2.5" fill="#fff" opacity=".6" transform="rotate(-30 14 16)"/></svg>';
+const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 function jackpotHtml(t){
   const n=kerstballen(t),per=Math.round(jackpot.per*100),rest=per-Math.round(t*100)%per;
-  const tekst=n?`${n===1?'kerstbal mag':'kerstballen mogen'} getrokken worden`:`Nog ${eur(rest/100)} tot een kerstbal`;
+  const een=esc(jackpot.een||'kerstbal'),meer=esc(jackpot.meer||'kerstballen');
+  const tekst=n?`${n===1?een+' mag':meer+' mogen'} getrokken worden`:`Nog ${eur(rest/100)} tot een ${een}`;
   const extra=n&&rest<per?`<span style="font-size:12px;opacity:.85">Nog ${eur(rest/100)} voor de volgende</span>`:'';
-  return {n,html:`${BAL}<b class="jn">${n}</b><div class="jt"><small>Jingle Ball Jackpot</small><span>${tekst}</span>${extra}</div>`};
+  return {n,html:`${BAL}<b class="jn">${n}</b><div class="jt"><small>${esc(jackpot.naam||'Actie')}</small><span>${tekst}</span>${extra}</div>`};
 }
 function tekenJackpot(){
   const j=$('jackpot'),t=totaal();
   if(!jackpotActief()||t<=0){j.hidden=true;return}
   const r=jackpotHtml(t);j.innerHTML=r.html;j.classList.toggle('nul',!r.n);j.hidden=false;
-  j.setAttribute('aria-label',r.n?`Jingle Ball Jackpot: ${r.n} kerstbal${r.n===1?'':'len'} mag${r.n===1?'':'en'} getrokken worden`:'Jingle Ball Jackpot');
+  j.setAttribute('aria-label',`${jackpot.naam||'Actie'}: `+(r.n?`${r.n} ${r.n===1?(jackpot.een||'kerstbal')+' mag':(jackpot.meer||'kerstballen')+' mogen'} getrokken worden`:''));
 }
 let promoVorige='';
 function controleerPromo(){
@@ -737,16 +747,18 @@ const art=i=>extra[i]||knoppen[i];
 const aantalStuks=()=>Object.entries(bon).reduce((s,[i,n])=>s+(art(i)?n:0),0);
 function totaal(){return Object.entries(bon).reduce((s,[i,n])=>s+(art(i)?art(i).prijs*n:0),0)}
 
+/* Red Bull-promo krijgt het blikje als icoon, andere promo's de feesttoeter */
+const promoIco=p=>/red\s*bull/i.test(p.naam||'')?icoHtml('svg:energy','ico'):'<span class="ico" aria-hidden="true">🎉</span>';
 function tekenGrid(){
   const g=$('grid');g.innerHTML='';
   /* Promoknop vooraan, alleen tijdens de promo-uren en als er een promoprijs is */
   const st=promoStatus();
   if(st.actief&&st.actief.p.prijs>0){
     const p=st.actief.p,b=document.createElement('button');b.className='key promo';b.dataset.i='p';
-    b.innerHTML=`<span class="tag">PROMO</span><span class="ico" aria-hidden="true">🎉</span><span class="naam"></span><span class="prijs">${eur(p.prijs)}</span>${bon.p?`<span class="aantal">${bon.p}×</span>`:''}`;
+    b.innerHTML=`<span class="tag">PROMO</span>${promoIco(p)}<span class="naam"></span><span class="prijs">${eur(p.prijs)}</span>${bon.p?`<span class="aantal">${bon.p}×</span>`:''}`;
     b.querySelector('.naam').textContent=p.naam;
     b.setAttribute('aria-label',`Promo ${p.naam} ${eur(p.prijs)} toevoegen`);
-    b.onclick=()=>{extra.p={naam:'Promo: '+p.naam,prijs:p.prijs,ico:'🎉',img:''};bon.p=(bon.p||0)+1;historie.push('p');tril();teken();const nk=g.querySelector('[data-i="p"]');if(nk)nk.classList.add('tik')};
+    b.onclick=()=>{extra.p={naam:'Promo: '+p.naam,prijs:p.prijs,ico:/red\s*bull/i.test(p.naam)?'svg:energy':'🎉',img:''};bon.p=(bon.p||0)+1;historie.push('p');tril();teken();const nk=g.querySelector('[data-i="p"]');if(nk)nk.classList.add('tik')};
     g.appendChild(b);
   }
   const pos=Math.max(0,Math.min(eigenPos,knoppen.length));
@@ -982,7 +994,7 @@ function tekenDag(){
   $('sKlanten').textContent=dag.klanten;
   $('sGem').textContent=dag.klanten?eur(dag.bedrag/dag.klanten):'–';
   $('sStuks').textContent=stuks;
-  $('sBallenVak').hidden=!(dag.ballen||jackpotActief());$('sBallen').textContent=dag.ballen||0;
+  $('sBallenVak').hidden=!(dag.ballen||jackpotActief());$('sBallen').textContent=dag.ballen||0;{const m=jackpot.meer||'kerstballen';$('sBallenLbl').textContent='🎁 '+m.charAt(0).toUpperCase()+m.slice(1)+' getrokken'}
   $('sKaart').textContent=eur(dag.kaart||0);
   $('sCash').textContent=eur(dag.bedrag-(dag.kaart||0));
   const tb=$('sRijen');tb.innerHTML='';
@@ -1001,13 +1013,15 @@ $('dagReset').onclick=()=>{
 function bewaar(){schrijf('kassa-knoppen',knoppen)}
 /* Admin: Jingle Ball Jackpot Weeks instellen */
 function tekenJackpotAdmin(){
-  $('jAan').checked=!!jackpot.aan;$('jVan').value=jackpot.van;$('jTot').value=jackpot.tot;$('jPer').value=jackpot.per;
+  $('jAan').checked=!!jackpot.aan;$('jNaam').value=jackpot.naam||'';$('jEen').value=jackpot.een||'';$('jMeer').value=jackpot.meer||'';$('jVan').value=jackpot.van;$('jTot').value=jackpot.tot;$('jPer').value=jackpot.per;
   const a=jackpotActief(),f=d=>new Date(d+'T12:00').toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'});
   $('jStatus').textContent=!jackpot.aan?'De actie staat uit.':!(jackpot.van&&jackpot.tot)?'Vul een begin- en einddatum in.'
-    :(a?'✓ De actie loopt nu: ':'De actie loopt ')+`van ${f(jackpot.van)} tot en met ${f(jackpot.tot)}, 1 kerstbal per ${eur(jackpot.per)}.`;
+    :(a?'✓ '+(jackpot.naam||'De actie')+' loopt nu: ':(jackpot.naam||'De actie')+' loopt ')+`van ${f(jackpot.van)} tot en met ${f(jackpot.tot)}, 1 ${jackpot.een||'kerstbal'} per ${eur(jackpot.per)}.`;
 }
 function bewaarJackpot(){schrijf('kassa-jackpot',jackpot);tekenJackpotAdmin();tekenJackpot()}
 $('jAan').onchange=()=>{jackpot.aan=$('jAan').checked;bewaarJackpot()};
+const jTekst=(id,k,std)=>{$(id).oninput=()=>{jackpot[k]=$(id).value;schrijf('kassa-jackpot',jackpot);tekenJackpot()};$(id).onchange=()=>{if(!$(id).value.trim()){jackpot[k]=std;$(id).value=std}schrijf('kassa-jackpot',jackpot);tekenJackpotAdmin()}};
+jTekst('jNaam','naam','Jingle Ball Jackpot');jTekst('jEen','een','kerstbal');jTekst('jMeer','meer','kerstballen');
 $('jVan').onchange=()=>{jackpot.van=$('jVan').value;bewaarJackpot()};
 $('jTot').onchange=()=>{jackpot.tot=$('jTot').value;bewaarJackpot()};
 $('jPer').oninput=()=>{const v=parseFloat(String($('jPer').value).replace(',','.'));if(v>=1){jackpot.per=Math.round(v*100)/100;schrijf('kassa-jackpot',jackpot);tekenJackpot();tekenJackpotAdmin()}};
