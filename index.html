@@ -756,7 +756,9 @@ const $=id=>document.getElementById(id);
 /* Een regel op de bon is een gewone knop (index) of de promo ('p') */
 const extra={}; // 'p'/'p2' = promo (1e/2e prijs), 'a<cent>' = zelf ingegeven prijs
 const art=i=>extra[i]||knoppen[i];
-const aantalStuks=()=>Object.entries(bon).reduce((s,[i,n])=>s+(art(i)?n:0),0);
+/* Hoeveel drankjes op de bon; een promo als "Shots 3+1" telt als 4 drankjes */
+const promoStuks=naam=>{const m=/(\d+)\s*\+\s*(\d+)/.exec(naam||'');return m?(+m[1]+ +m[2])||1:1};
+const aantalStuks=()=>Object.entries(bon).reduce((s,[i,n])=>s+(art(i)?n*(art(i).stuks||1):0),0);
 function totaal(){return Object.entries(bon).reduce((s,[i,n])=>s+(art(i)?art(i).prijs*n:0),0)}
 
 /* Icoon van de promoknop volgens de naam: Red Bull = blikje, shots = shotglaasje, anders de feesttoeter */
@@ -775,7 +777,7 @@ function tekenGrid(){
       b.innerHTML=`<span class="tag">PROMO</span>${icoon}<span class="naam"></span><span class="prijs">${eur(prijs)}</span>${bon[sl]?`<span class="aantal">${bon[sl]}×</span>`:''}`;
       b.querySelector('.naam').textContent=p.naam;
       b.setAttribute('aria-label',`Promo ${p.naam} ${eur(prijs)} toevoegen`);
-      b.onclick=()=>{extra[sl]={naam:'Promo: '+p.naam+(p.prijs>0&&p.prijs2>0?' '+eur(prijs):''),prijs,ico,img:''};bon[sl]=(bon[sl]||0)+1;historie.push(sl);tril();teken();const nk=g.querySelector(`[data-i="${sl}"]`);if(nk)nk.classList.add('tik')};
+      b.onclick=()=>{extra[sl]={naam:'Promo: '+p.naam+(p.prijs>0&&p.prijs2>0?' '+eur(prijs):''),prijs,ico,img:'',stuks:promoStuks(p.naam)};bon[sl]=(bon[sl]||0)+1;historie.push(sl);tril();teken();const nk=g.querySelector(`[data-i="${sl}"]`);if(nk)nk.classList.add('tik')};
       g.appendChild(b);
     });
   }
